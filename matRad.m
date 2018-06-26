@@ -14,7 +14,7 @@
 % LICENSE file.
 %
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+ 
 clear
 close all
 clc
@@ -49,15 +49,16 @@ pln.propOpt.runDAO          = false;  % 1/true: run DAO, 0/false: don't / will b
 pln.propOpt.runSequencing   = false;  % 1/true: run sequencing, 0/false: don't / will be ignored for particles and also triggered by runDAO below
 
 %% initial visualization and change objective function settings if desired
-matRadGUI
+%matRadGUI
 
 %% generate steering file
 stf = matRad_generateStf(ct,cst,pln);
 
 %% dose calculation
 if strcmp(pln.radiationMode,'photons')
-    dij = matRad_calcPhotonDose(ct,stf,pln,cst);
+    %dij = matRad_calcPhotonDose(ct,stf,pln,cst);
     %dij = matRad_calcPhotonDoseVmc(ct,stf,pln,cst);
+    dij = matRad_calcPhotonDoseEgs(ct,stf,pln,cst);
 elseif strcmp(pln.radiationMode,'protons') || strcmp(pln.radiationMode,'carbon')
     dij = matRad_calcParticleDose(ct,stf,pln,cst);
 end
@@ -66,14 +67,14 @@ end
 resultGUI = matRad_fluenceOptimization(dij,cst,pln);
 
 %% sequencing
-if strcmp(pln.radiationMode,'photons') && (pln.propertiesOpt.runSequencing || pln.propertiesOpt.runDAO)
+if strcmp(pln.radiationMode,'photons') && (pln.propOpt.runSequencing || pln.propOpt.runDAO)
     %resultGUI = matRad_xiaLeafSequencing(resultGUI,stf,dij,5);
     %resultGUI = matRad_engelLeafSequencing(resultGUI,stf,dij,5);
     resultGUI = matRad_siochiLeafSequencing(resultGUI,stf,dij,5);
 end
 
 %% DAO
-if strcmp(pln.radiationMode,'photons') && pln.propertiesOpt.runDAO
+if strcmp(pln.radiationMode,'photons') && pln.propOpt.runDAO
    resultGUI = matRad_directApertureOptimization(dij,cst,resultGUI.apertureInfo,resultGUI,pln);
    matRad_visApertureInfo(resultGUI.apertureInfo);
 end

@@ -1,0 +1,50 @@
+  :start beamlet source:      
+      my name = source 1
+      monitor units source 1 = 1
+      mono energy = 6
+      spectrum = ./spectra/var_6MV.spectrum
+      charge       = 0
+      beamlet edges = -26.35853  23.25589  14.88921 -26.35853  23.00589  14.88921 -26.35853  23.00589  14.63921
+      virtual point source position = -76.35853  25.13089  16.26421
+  :stop beamlet source:       
+                              
+  :start MC Parameter:        
+      automatic parameter = yes
+  :stop MC Parameter:         
+                              
+  :start MC Control:          
+      ncase  = 5000
+      nbatch = 10
+      rng seeds = 18971   2927
+  :stop MC Control:           
+                              
+  :start variance reduction:  
+      repeat history   = 0.251
+      split photons = yes
+      photon split factor = -40
+  :stop variance reduction: 
+                              
+  :start quasi:  
+      base      = 2
+      dimension = 60
+      skip      = 1
+  :stop quasi:    
+                              
+  :start geometry:            
+      :start XYZ geometry:    
+          my name = CT
+          method of input = CT-PHANTOM
+          phantom file    = ./phantoms/matRad_CT.ct
+      :stop XYZ geometry:     
+  :stop geometry:             
+                              
+  :start scoring options:
+      start in geometry: CT
+      :start dose options:  
+          score in geometries: CT
+          score dose to water: yes
+      :stop dose options:     
+      :start output options CT:
+          dump dose:  2
+      :stop output options CT:
+  :stop scoring options:      

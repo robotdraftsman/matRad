@@ -74,10 +74,10 @@ for i = 1:dij.numOfScenarios
 end
 
 % set environment variables for vmc++
-if exist(['vmc++' filesep 'bin'],'dir') ~= 7
-    error(['Could not locate vmc++ environment. ' ...
-          'Please provide the files in the correct folder structure at matRadroot' filesep 'vmc++.']);
-else
+% if exist(['vmc++' filesep 'bin'],'dir') ~= 7
+%     error(['Could not locate vmc++ environment. ' ...
+%           'Please provide the files in the correct folder structure at matRadroot' filesep 'vmc++.']);
+% else
     VMCPath     = fullfile(pwd , 'vmc++');
     runsPath    = fullfile(VMCPath, 'runs');
     phantomPath = fullfile(VMCPath, 'phantoms');
@@ -90,7 +90,7 @@ else
         system(['chmod a+x ' VMCPath filesep 'bin' filesep 'vmc_Linux.exe']);
     end
     
-end
+% end
 
 % set consistent random seed (enables reproducibility)
 rng(0);
