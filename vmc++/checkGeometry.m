@@ -118,7 +118,7 @@ for j = 1:length(stf)
 
     %min and max in bev:
     boundaries = zeros(2,3);
-
+    %units in mm !!
     boundaries(1,:) = (max(beamletCentres,[],1) + [2.5 0 2.5] )/2;  %max values in each dimension
     boundaries(2,:) = (min(beamletCentres,[],1) - [2.5 0 2.5] )/2 ; %min values in each direction
 

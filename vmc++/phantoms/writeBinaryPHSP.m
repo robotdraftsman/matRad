@@ -58,7 +58,7 @@ end
 phspPath = 'beamletPHSPfiles';
 filebase = 'dividedPhsp';
 
-xmin = -40;
+xmin = -40; %these are in mm
 xmax = 40;
 ymin = -45;
 ymax = 45;
@@ -66,9 +66,12 @@ ymax = 45;
 allBeamlets = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1),2);
 
 %now loop over these and cut up the phsp file as I did before
-scatter(phspSrc(:,6)*10,phspSrc(:,7)*10)
-hold on
+%scatter(phspSrc(:,6)*10,phspSrc(:,7)*10)
+%hold on
 n = 1;
+
+numParticles = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1),1);
+
 for x = xmin:5:xmax
     for y = ymin:5:ymax
         if(x == xmax && y == ymax)
@@ -86,23 +89,34 @@ for x = xmin:5:xmax
         phspFile = fullfile(phspPath, strcat(filebase,num2str(n),'.egsphsp1'));
         fid = fopen(phspFile,'w');
 
-        importantStuffs = zeros(length(I),2);
+        % energies, charges, and electron energies
+        importantStuffs = zeros(length(I),3);
+        eindex = 1;
         for i = 1:length(I)
            %need charges, max energies
            importantStuffs(i,1) = phspSrc(I(i),5);  %energies
            importantStuffs(i,2) = charges(I(i)); %charges
+           
+           if(importantStuffs(i,2) == -1)
+              importantStuffs(eindex,3) = importantStuffs(i,1); 
+              eindex = eindex + 1;
+           end
         end
 
-        [emax,imax] = max(abs(importantStuffs(:,1)));
-        [emin,imin] = min(abs(importantStuffs(:,1)));
 
         fwrite(fid, m.Data.mode, 'int8');
         fwrite(fid, length(I),'int32'); %write the number of particles
         fwrite(fid, length(importantStuffs(:,2) == 0),'int32'); %number of photons
-        fwrite(fid, importantStuffs(imax),'single');    %max kinetic energy
-        fwrite(fid, importantStuffs(imin),'single');    %min kinetic energy
-        fwrite(fid, m.Data.NINC_PHSP_SHORT,'single');
+        fwrite(fid, max(abs(importantStuffs(:,1))),'single');    %max kinetic energy
+        
+        % now get the min electron energy:
+        fwrite(fid, min(abs(importantStuffs(1:eindex,3))),'single');    %min kinetic energy
 
+        fwrite(fid, m.Data.NINC_PHSP_SHORT,'single');
+        
+        numParticles(n) = length(I);
+        
+        
         %header finished, now write those weird 3 bytes that are formatted in:
         fwrite(fid, [0 0 0],'uint8');
 
@@ -304,8 +318,10 @@ end
 
 %relevant beamlets are numbers 155, 156, 157, 136, 137, 138, 174, 175, 176
 
-hold off
+%hold off
 
+clear m;
+clear m2;
 
 % [communist geologists]
 % Ivan: look at all this mica

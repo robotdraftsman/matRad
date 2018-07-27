@@ -4,7 +4,8 @@
 
 %phspFile = '40x40.egsphsp1';
 %phspFile = 'beamletTestphsp.egsphsp1';
-phspFile = '1x1.egsphsp1';
+%phspFile = '1x1.egsphsp1';
+phspFile = '5x5_at_50cm.egsphsp1';
 
 % read the header:
  m = memmapfile(phspFile,...
@@ -45,6 +46,7 @@ end
 
 strMode = char(m.Data.mode);
 
+fprintf("memmapped everything; getting charges now...");
 
 %now to get the required information out of latch
 charges = zeros(length(m2.Data),1);
