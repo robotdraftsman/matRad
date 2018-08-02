@@ -191,6 +191,18 @@ end
 %entry in the column is a binary saying whether the beam does/doesn't
 %include the beamlet corresponding to its index (and hence also whether the
 %phsp file for that should be used to construct the dose).
+
+xmin = -40; %these are in mm
+xmax = 40;
+ymin = -45;
+ymax = 45;
+
+for x = xmin:5:xmax
+    for y = ymin:5:ymax
+        allBeamlets(n,:) = [x y];
+    end
+end
+
 whichBeamlets = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1)  ,length(stf));  %beamlets included (index in a given row) for each beam (columns)
 for i = 1:length(stf)
     for j = 1:stf(i).numOfRays

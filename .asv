@@ -1,5 +1,0 @@
-*.egs*
-vmc++/bin/*
-vmc++/data/*
-vmc++/lib/*
-vmc++

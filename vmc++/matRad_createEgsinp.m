@@ -1,22 +1,41 @@
 %like createVmcInput except for making .egsinp files
 %function matRad_createEgsinp(n,i,filebase)
 %where n is beam number and i is beamlet number
-
-%change rexc 3, not 4 or 5
-% xiso,yiso,ziso - isocentre from matRad - in cm (rn in mm, so convert)
-% theta,phi - gantry angle - convert using the paper's transformations
-% dsource = 50,phicol = 0 (it isn't defined in matRad...)
-% i_dbs,r_dbs,ssd_dbs,z_dbs,e_split - leave at default
-% Record SC2 - default stuff. enflag = 2
-% Record SC3b - name and path of phsp
-% record 13 - all default except NCASE: number of histories
+%make it a function later when integrated into calcPhotonDoseEgs
 
 %transform xyz coords using this matrix:
 % T = [(cos(thetaT)*cos(thetaG)*sin(thetaC)-sin(thetaT)*cos(thetaC)) (cos(thetaT)*cos(thetaG)*sin(thetaC)+sin(thetaT)*cos(thetaC)) (cos(thetaT)*sin(thetaG));
 %     sin(thetaG)*sin(thetaC) sin(thetaG)*cos(thetaC) -cos(thetaG);...
 %     (-sin(thetaT)*cos(thetaG)*sin(thetaC) - cos(thetaT)*cos(thetaC)) (-sin(thetaT)*cos(thetaG)*sin(thetaC) + cos(thetaT)*cos(thetaC)) (-sin(thetaT)*sin(thetaG))];
 
-% 
+
+%first make matrix that tells which beamlets (numbered according to the
+%phsp files) are used in a given beam (is binary; 1 = used, 0 = not used):
+
+xmin = -40; %these are in mm
+xmax = 40;
+ymin = -45;
+ymax = 45;
+n = 1;
+allBeamlets = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1),2);
+
+for x = xmin:5:xmax
+    for y = ymin:5:ymax
+        allBeamlets(n,:) = [x y];
+        n = n + 1
+    end
+end
+
+whichBeamlets = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1)  ,length(stf));  %beamlets included (index in a given row) for each beam (columns)
+for i = 1:length(stf)
+    for j = 1:stf(i).numOfRays
+        indexOfPhsp = find( (allBeamlets(:,1) == stf(i).ray(j).rayPos_bev(1)) & (allBeamlets(:,2) == stf(i).ray(j).rayPos_bev(3)) );    %find index in reference vector that corresponds to this beamlet
+        whichBeamlets(indexOfPhsp,i) = 1;
+    end
+end
+
+
+%okay now make the phasespace files by looping over the beams and beamlets:
 
 filebase = 'inputs';
 phspfilebase = "dividedPhsp";
@@ -43,9 +62,6 @@ for n = 1:length(stf)
             phantomName = "matRad_CT.egsphant"; % = strcat(ct.dicomInfo.PatientName.GivenName,ct.dicomInfo.PatientName.MiddleName,ct.dicomInfo.PatientName.FamilyName,"_CT",".egsphant");
             thisegsinpfile = strcat(filebase, 'Beam',num2str(n),'Beamlet',num2str(i), '.egsinp')
             sourcephspfile = strcat(phspfilebase,num2str(i), '.egsphsp1');
-            %the above assumes that the phsp file from which we create the egsinp file
-            %has the same naming convention as the egsinp file. Pass the filebase in
-            %when calling this function
 
             %The angles in the matRad (DICOM) coordinate system:
             thetaC = 0; %madRad collimator angle
@@ -77,17 +93,19 @@ for n = 1:length(stf)
 
             fprintf(file,"                                                                                 #!GUI1.0\n");
             fprintf(file, "%d\n",rec2);
-            fprintf(file,"/home/shussain/egsnrc/dosxyznrc/%s\n",phantomName);
+            fprintf(file,"/data/data060/shussain/egsnrc/dosxyznrc/%s\n",phantomName);
             fprintf(file,"%f, %f, %f\n", rec4);
             fprintf(file,"%d, %d, %d\n", rec5);
             fprintf(file,"2, 2, %f, %f, %f, %f, %f, %f, %f, 0, 0, 0, 0, 0\n",isocentre(1),isocentre(2),isocentre(3),dosxyzTheta,dosxyzPhi,dsource,dosxyzPhiCol);
             fprintf(file,"2, 0, 0, 0, 0, 0, 0, 0\n");
-            fprintf(file,"/home/shussain/egsnrc/dosxyznrc/%s\n",sourcephspfile);
+            fprintf(file,"/data/data060/shussain/egsnrc/dosxyznrc/%s\n",sourcephspfile);
 
-            nhistories = m.Data.NINC_PHSP_SHORT;    %confirm that this is right w prof?
+           
+            nhistories = 100000;
+            
             %print record 13:
             fprintf(file,"%d, 0, 99, 33, 97, 100.0, 0, 0, 0, 0, , -1, 0, 0, 1, 0, 0\n",nhistories);
-
+            
             mctparameter = strcat('#########################\n',...
                 [':Start MC Transport Parameter:\n\n'],...
                 ['Global ECUT= 0.7\n'],...
