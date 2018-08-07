@@ -54,18 +54,17 @@ end
 
 %test out a beamlet in first beam:
 %gets all the points in a given beamlet:
-%n = 156;   %when looping over beamlets n = beamlet number. rn 156 (in centre of beam so overpapped w/ mini phsp file)
 phspPath = 'beamletPHSPfiles';
 filebase = 'dividedPhsp';
 
-xmin = -40; %these are in mm
-xmax = 40;
+xmin = -45; %these are in mm
+xmax = 45;
 ymin = -45;
 ymax = 45;
 
 allBeamlets = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1),2);
 
-%now loop over these and cut up the phsp file as I did before
+%now loop over these and cut up the phsp file
 %scatter(phspSrc(:,6)*10,phspSrc(:,7)*10)
 %hold on
 n = 1;
@@ -126,7 +125,7 @@ for x = xmin:5:xmax
             fwrite(fid, phspSrc(I(i),2), 'uint8');
             fwrite(fid, phspSrc(I(i),3),'uint8');
             fwrite(fid, phspSrc(I(i),4),'uint8');
-            fwrite(fid, phspSrc(I(i),5),'single');
+            fwrite(fid, abs(phspSrc(I(i),5)),'single'); %want +ve energy. The -ve energy setting isn't applicable here
             fwrite(fid, phspSrc(I(i),6),'single');
             fwrite(fid, phspSrc(I(i),7),'single');
             fwrite(fid, phspSrc(I(i),8),'single');
@@ -192,24 +191,24 @@ end
 %include the beamlet corresponding to its index (and hence also whether the
 %phsp file for that should be used to construct the dose).
 
-xmin = -40; %these are in mm
-xmax = 40;
-ymin = -45;
-ymax = 45;
-
-for x = xmin:5:xmax
-    for y = ymin:5:ymax
-        allBeamlets(n,:) = [x y];
-    end
-end
-
-whichBeamlets = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1)  ,length(stf));  %beamlets included (index in a given row) for each beam (columns)
-for i = 1:length(stf)
-    for j = 1:stf(i).numOfRays
-        indexOfPhsp = find( (allBeamlets(:,1) == stf(i).ray(j).rayPos_bev(1)) & (allBeamlets(:,2) == stf(i).ray(j).rayPos_bev(3)) );    %find index in reference vector that corresponds to this beamlet
-        whichBeamlets(indexOfPhsp,i) = 1;
-    end
-end
+% xmin = -45; %these are in mm
+% xmax = 45;
+% ymin = -45;
+% ymax = 45;
+% 
+% for x = xmin:5:xmax
+%     for y = ymin:5:ymax
+%         allBeamlets(n,:) = [x y];
+%     end
+% end
+% 
+% whichBeamlets = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1)  ,length(stf));  %beamlets included (index in a given row) for each beam (columns)
+% for i = 1:length(stf)
+%     for j = 1:stf(i).numOfRays
+%         indexOfPhsp = find( (allBeamlets(:,1) == stf(i).ray(j).rayPos_bev(1)) & (allBeamlets(:,2) == stf(i).ray(j).rayPos_bev(3)) );    %find index in reference vector that corresponds to this beamlet
+%         whichBeamlets(indexOfPhsp,i) = 1;
+%     end
+% end
 
 
 

@@ -12,8 +12,8 @@
 %first make matrix that tells which beamlets (numbered according to the
 %phsp files) are used in a given beam (is binary; 1 = used, 0 = not used):
 
-xmin = -40; %these are in mm
-xmax = 40;
+xmin = -45; %these are in mm
+xmax = 45;
 ymin = -45;
 ymax = 45;
 n = 1;
@@ -41,10 +41,10 @@ filebase = 'inputs';
 phspfilebase = "dividedPhsp";
 egsinpPath = 'egsinpFiles';
 
-%just for first beam rn (hence n = 1) otherwise loop over n beams (here, 5)
-% n=1;
-% i = 1;
 for n = 1:length(stf)
+    
+    m = 1;  %used to track which beamlet it is as numbered by stf struct
+    
     for i = 1:length(whichBeamlets) %so it loops over ALL beamlets, not just those in the beam
         %so bc loops over all, I'll just make the egsinp file if the
         %relevant entry in the whichBeamlets matrix is 1. Else I keep going
@@ -60,7 +60,10 @@ for n = 1:length(stf)
         
         if(whichBeamlets(i,n) == 1)
             phantomName = "matRad_CT.egsphant"; % = strcat(ct.dicomInfo.PatientName.GivenName,ct.dicomInfo.PatientName.MiddleName,ct.dicomInfo.PatientName.FamilyName,"_CT",".egsphant");
-            thisegsinpfile = strcat(filebase, 'Beam',num2str(n),'Beamlet',num2str(i), '.egsinp')
+            %first one is to number beamlets to match phsp file numbers
+            %second one is to number them according to the place in the stf struct
+            %thisegsinpfile = strcat(filebase, 'Beam',num2str(n),'Beamlet',num2str(i), '.egsinp')
+            thisegsinpfile = strcat(filebase, 'Beam',num2str(n),'Beamlet',num2str(m), '.egsinp')
             sourcephspfile = strcat(phspfilebase,num2str(i), '.egsphsp1');
 
             %The angles in the matRad (DICOM) coordinate system:
@@ -135,7 +138,7 @@ for n = 1:length(stf)
             fprintf(file,mctparameter);
 
             fclose(file);
-
+            m = m + 1;
         end
     end
 end

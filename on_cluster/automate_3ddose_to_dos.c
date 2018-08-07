@@ -26,7 +26,7 @@ int nreg;
 main (int argc, char** argv)
 {
   
-  int numBeamlets = 323; //fixed for now (afaik this is the overall max?)
+  int numBeamlets = 361; //fixed for now (afaik this is the overall max?)
   int maxSubmit = 200;  //maximum number of jobs to submit to the cluster at a time
 
 

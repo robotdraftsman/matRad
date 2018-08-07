@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
   //so when calling fn, go like:
   // ./autoDos filebase totnumBeams startingBeam startingBeamlet
   // int numBeams = argv[2];
-  int numBeamlets = 323; //fixed for now (afaik this is the overall max?)
+  int numBeamlets = 361; //fixed for now (afaik this is the overall max?)
   int maxSubmit = 200;  //maximum number of jobs to submit to the cluster at a time
   int numSubitted = 0; 
   /*int nat = 3;
@@ -103,7 +103,7 @@ int main(int argc, char** argv) {
   
   /*
   Here we gotta get the person to tell us what number beam (n) and beamlet (i) to start on
-  And also make sure that 1 <= n <= 5 and 1 <= i <= 323
+  And also make sure that 1 <= n <= 5 and 1 <= i <=361
   */  
   
   /*char * argv[];
@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
   
   /* so after it submits 200 jobs to the cluster it'll stop and tell you what beam
   and beamlet number it just submitted, and give you the next beamlet number (if it's
-  not on beamlet 323; if it is, it'll give you the next beam number, and beamlet number 1)
+  not on beamlet 361; if it is, it'll give you the next beam number, and beamlet number 1)
   so that when these jobs are done, you can go and run it again but starting from that number
   so that it'll submit the next 200. Keep doing that until you've done them all
   */
