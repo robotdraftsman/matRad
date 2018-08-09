@@ -68,23 +68,41 @@ ymax = 45;
 allBeamlets = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1),2);
 
 %now loop over these and cut up the phsp file
-%scatter(phspArray(:,6)*10,phspArray(:,7)*10)
+%scatter(allTheStuff(3:7:length(m2.Data.allTheStuff))*10,m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10)
 %hold on
 n = 1;
 
 numParticles = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1),1);
 
+%in my phsp read-in, it's a repeating column vector of thhe values, going:
+%latch, energy, x, y, u, v, wt --and then repeat.
+%to access just one data type as an array, we go like
+% A(first_one:7:last_one)
+%first_one for x is 3. Last_one is end of array - 4
+%skip is 7.
+%index in actual vector is start + skip*index-1)
+
+%so finally to get an array of just x, we want
+%m2.Data.allTheStuff(3:7:length(m2.Data.allTheStuff))
+%for y, we want: m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))
+
 for x = xmin:5:xmax
     for y = ymin:5:ymax
         if(x == xmax && y == ymax)
-            I = find( ( (phspArray(:,6)*10 - x/2) >= -2.5/2 & (phspArray(:,6)*10 - x/2) <= 2.5/2 ) & ( (phspArray(:,7)*10 - y/2) >= -2.5/2 & (phspArray(:,7)*10 - y/2) <= 2.5/2 ) ); 
+            I = find( ( (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - x/2) >= -2.5/2 & (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - x/2) <= 2.5/2 ) & ( (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - y/2) >= -2.5/2 & (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - y/2) <= 2.5/2 ) ); 
+            I = find( ( (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - x/2) >= -2.5/2 & (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - x/2) <= 2.5/2 ) & ( (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - y/2) >= -2.5/2 & (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - y/2) <= 2.5/2 ) ); 
+            
         elseif(x==xmax)
-            I = find( ( (phspArray(:,6)*10 - x/2) >= -2.5/2 & (phspArray(:,6)*10 - x/2) <= 2.5/2 ) & ( (phspArray(:,7)*10 - y/2) >= -2.5/2 & (phspArray(:,7)*10 - y/2) < 2.5/2 ) ); 
+            I = find( ( (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - x/2) >= -2.5/2 & (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - x/2) <= 2.5/2 ) & ( (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - y/2) >= -2.5/2 & (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - y/2) < 2.5/2 ) ); 
         elseif(y==ymax)
-            I = find( ( (phspArray(:,6)*10 - x/2) >= -2.5/2 & (phspArray(:,6)*10 - x/2) < 2.5/2 ) & ( (phspArray(:,7)*10 - y/2) >= -2.5/2 & (phspArray(:,7)*10 - y/2) <= 2.5/2 ) ); 
+            I = find( ( (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - x/2) >= -2.5/2 & (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - x/2) < 2.5/2 ) & ( (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - y/2) >= -2.5/2 & (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - y/2) <= 2.5/2 ) ); 
         else
-            I = find( ( (phspArray(:,6)*10 - x/2) >= -2.5/2 & (phspArray(:,6)*10 - x/2) < 2.5/2 ) & ( (phspArray(:,7)*10 - y/2) >= -2.5/2 & (phspArray(:,7)*10 - y/2) < 2.5/2 ) ); 
+            I = find( ( (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - x/2) >= -2.5/2 & (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - x/2) < 2.5/2 ) & ( (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - y/2) >= -2.5/2 & (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - y/2) < 2.5/2 ) ); 
         end
+        
+        %now all uses of the indices in I must instead of having I(i) or
+        %whatever must have starting + skip*(I(i)-1)
+        %with skip = 7 and starting = 3 for x, 4 for y
         
         allBeamlets(n,:) = [x y];
         
@@ -224,7 +242,7 @@ end
 %loop over beams ==> now just need to change stf(1) to stf(j) everywhere
 %tic;
 %for j = 1:length(stf)
-    scatter(phspArray(:,6)*10,phspArray(:,7)*10)
+    scatter(allTheStuff(3:7:length(m2.Data.allTheStuff))*10,m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10)
     hold on
 %     j = 1;  %so I only have to look at beam 1 right now
 %     tic;
@@ -250,14 +268,14 @@ end
 %         
 %         %tic;
 % %         if(is nothing to its right _and_ above it)
-% %             I = find( ( (phspArray(:,6)*10 - stf(j).ray(n).rayPos_bev(1)/2) >= -2.5/2 & (phspArray(:,6)*10 - stf(j).ray(n).rayPos_bev(1)/2) <= 2.5/2 ) & ( (phspArray(:,7)*10 - stf(j).ray(n).rayPos_bev(3)/2) >= -2.5/2 & (phspArray(:,7)*10 - stf(j).ray(n).rayPos_bev(3)/2) <= 2.5/2 ) );
+% %             I = find( ( (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) >= -2.5/2 & (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) <= 2.5/2 ) & ( (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) >= -2.5/2 & (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) <= 2.5/2 ) );
 % %         elseif(is nothing above it)
-% %             I = find( ( (phspArray(:,6)*10 - stf(j).ray(n).rayPos_bev(1)/2) >= -2.5/2 & (phspArray(:,6)*10 - stf(j).ray(n).rayPos_bev(1)/2) < 2.5/2 ) & ( (phspArray(:,7)*10 - stf(j).ray(n).rayPos_bev(3)/2) >= -2.5/2 & (phspArray(:,7)*10 - stf(j).ray(n).rayPos_bev(3)/2) <= 2.5/2 ) );
+% %             I = find( ( (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) >= -2.5/2 & (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) < 2.5/2 ) & ( (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) >= -2.5/2 & (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) <= 2.5/2 ) );
 % %         elseif(is nothing to its right)
-% %             I = find( ( (phspArray(:,6)*10 - stf(j).ray(n).rayPos_bev(1)/2) >= -2.5/2 & (phspArray(:,6)*10 - stf(j).ray(n).rayPos_bev(1)/2) <= 2.5/2 ) & ( (phspArray(:,7)*10 - stf(j).ray(n).rayPos_bev(3)/2) >= -2.5/2 & (phspArray(:,7)*10 - stf(j).ray(n).rayPos_bev(3)/2) < 2.5/2 ) );
+% %             I = find( ( (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) >= -2.5/2 & (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) <= 2.5/2 ) & ( (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) >= -2.5/2 & (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) < 2.5/2 ) );
 % %         else
 %             %is just inside the beam, not on the edges
-%             I = find( ( (phspArray(:,6)*10 - stf(j).ray(n).rayPos_bev(1)/2) >= -2.5/2 & (phspArray(:,6)*10 - stf(j).ray(n).rayPos_bev(1)/2) < 2.5/2 ) & ( (phspArray(:,7)*10 - stf(j).ray(n).rayPos_bev(3)/2) >= -2.5/2 & (phspArray(:,7)*10 - stf(j).ray(n).rayPos_bev(3)/2) < 2.5/2 ) );
+%             I = find( ( (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) >= -2.5/2 & (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) < 2.5/2 ) & ( (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) >= -2.5/2 & (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) < 2.5/2 ) );
 %         %end
 %         %toc;    %would take ~10.5 minutes per beamlet for 10^7 particles
 % 

@@ -172,6 +172,9 @@ VmcOptions.scoringOptions.outputOptions.dumpDose        = 2;               % out
 % export CT cube as binary file for vmc++
 matRad_exportCtVmc(ct, fullfile(phantomPath, 'matRad_CT.ct'));
 
+
+
+
 % take only voxels inside patient
 V = [cst{:,4}];
 V = unique(vertcat(V{:}));

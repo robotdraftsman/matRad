@@ -4,8 +4,8 @@
 
 %phspFile = '40x40.egsphsp1';
 %phspFile = 'beamletTestphsp.egsphsp1';
-%phspFile = '1x1.egsphsp1';
-phspFile = '5x5_at_50cm.egsphsp1';
+phspFile = '1x1_old.egsphsp1';
+%phspFile = '5x5_at_50cm.egsphsp1';
 
 % read the header:
  m = memmapfile(phspFile,...
@@ -46,7 +46,7 @@ end
 
 strMode = char(m.Data.mode);
 
-fprintf("memmapped everything; getting charges now...");
+fprintf("memmapped everything; getting charges now...\n");
 
 %now to get the required information out of latch
 charges = zeros(length(m2.Data),1);
@@ -67,6 +67,9 @@ for i = 1:length(m2.Data)
     end
     charges(i) = charge;
 end
+
+testArray = zeros(267,1);
+testArray = m2.Data.ESHORT
 
 %the index of charges matches the index of m2.Data from whence it came    
 
