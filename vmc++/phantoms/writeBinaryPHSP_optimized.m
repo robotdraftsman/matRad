@@ -1,31 +1,5 @@
 %write phase space file for each beamlet
-
-%% load stuff so I don't have to run matRad every time:
-
-load TG119.mat
-pln.radiationMode   = 'photons';     % either photons / protons / carbon
-pln.machine         = 'Generic';
-
-pln.numOfFractions  = 30;
-
-% beam geometry settings
-pln.propStf.bixelWidth      = 5; % [mm] / also corresponds to lateral spot spacing for particles
-pln.propStf.gantryAngles    = [0:72:359]; % [?]
-pln.propStf.couchAngles     = [0 0 0 0 0]; % [?]
-pln.propStf.numOfBeams      = numel(pln.propStf.gantryAngles);
-pln.propStf.isoCenter       = ones(pln.propStf.numOfBeams,1) * matRad_getIsoCenter(cst,ct,0);
-
-
-% optimization settings
-pln.propOpt.bioOptimization = 'none'; % none: physical optimization;             const_RBExD; constant RBE of 1.1;
-                                      % LEMIV_effect: effect-based optimization; LEMIV_RBExD: optimization of RBE-weighted dose
-pln.propOpt.runDAO          = false;  % 1/true: run DAO, 0/false: don't / will be ignored for particles
-pln.propOpt.runSequencing   = false;  % 1/true: run sequencing, 0/false: don't / will be ignored for particles and also triggered by runDAO below
-
-%generate steering file
-stf = matRad_generateStf(ct,cst,pln);
-
-%% now do the actual stuff
+function = writeBinaryPHSP_optimized()
 
 %total number of particles through this beamlet:
 %beamlet boundaries in x and y are (stf.ray.rayPos_bev(x or y) +/- 2.5)/2
@@ -37,28 +11,27 @@ stf = matRad_generateStf(ct,cst,pln);
 
 %put things in a matrix
 %tic;
-phspArray = zeros(length(m2.Data),7+3); %if in mode2 (include zlast) 7->8
+%phspArray = zeros(length(phspData.Data),7+3); %if in mode2 (include zlast) 7->8
 %the +3 part is because I'm storing each latch byte separately (the other
 %additional spaces are not used)
 
-% for i = 1:length(m2.Data)
-%     phspArray(i,1:4) = m2.Data(i).LATCH;
-%     phspArray(i,5) = m2.Data(i).ESHORT;
-%     phspArray(i,6) = m2.Data(i).X_PHSP_SHORT;
-%     phspArray(i,7) = m2.Data(i).Y_PHSP_SHORT;
-%     phspArray(i,8) = m2.Data(i).U_PHSP_SHORT;
-%     phspArray(i,9) = m2.Data(i).V_PHSP_SHORT;
-%     phspArray(i,10) = m2.Data(i).WT_PHSP_SHORT;
+% for i = 1:length(phspData.Data)
+%     phspArray(i,1:4) = phspData.Data(i).LATCH;
+%     phspArray(i,5) = phspData.Data(i).ESHORT;
+%     phspArray(i,6) = phspData.Data(i).X_PHSP_SHORT;
+%     phspArray(i,7) = phspData.Data(i).Y_PHSP_SHORT;
+%     phspArray(i,8) = phspData.Data(i).U_PHSP_SHORT;
+%     phspArray(i,9) = phspData.Data(i).V_PHSP_SHORT;
+%     phspArray(i,10) = phspData.Data(i).WT_PHSP_SHORT;
 % end
 %toc; %so for 10^6 particles would take ~ 20 minutes :/ but can't think of a way to speed it up
 
 % !!!### Regardign the baove: now readBinaryPHSP_optimized makes the matrix
 
-
 %test out a beamlet in first beam:
 %gets all the points in a given beamlet:
 phspPath = 'beamletPHSPfiles';
-filebase = 'dividedPhsp';
+filebase = 'dividedPhsp36M';
 
 xmin = -45; %these are in mm
 xmax = 45;
@@ -66,98 +39,180 @@ ymin = -45;
 ymax = 45;
 
 allBeamlets = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1),2);
+n = 1;
+for x = xmin:5:xmax
+    for y = ymin:5:ymax
+        allBeamlets(n,:) = [x y];
+        n = n + 1;
+    end
+end
 
 %now loop over these and cut up the phsp file
-%scatter(allTheStuff(3:7:length(m2.Data.allTheStuff))*10,m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10)
+%scatter(allTheStuff(3:7:length(phspData.Data.allTheStuff))*10,phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))*10)
 %hold on
-n = 1;
 
-numParticles = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1),1);
+%one row for each beamlet. Col1 = numParticles, col2 = numPhotons:
+headerNumbers = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1),2);
 
-%in my phsp read-in, it's a repeating column vector of thhe values, going:
+%one row for each beamlet. col1 = maxEnergy, col2 = min elec energy in beamlet:
+%set all entries to inf so that don't have to worry about 0s messing up min
+%energy values -> any particle's energy is less. So on first iteration it
+%becomes a finite number: the first particle in that beamlet's energy
+maxEnergy = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1),1);
+minEnergy = inf(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1),1);
+
+%new structure: loop through phspData and check which beamlet each particle
+%is in. Can either accumulate stuff to write to each file or just write
+%directly to each file. In latter case, would have an array of fids and
+%just access the relevant one based on the x and y of the particle we're
+%looking at
+
+%create array of fids for all the beamlets:
+filenum = 1;
+for x = xmin:5:xmax
+    for y = ymin:5:ymax
+        phspFile = fullfile(phspPath, strcat(filebase,num2str(n),'.egsphsp1'));
+        fids(filenum) = fopen(phspFile,'w+');
+        %placeholder for the header:
+        fwrite(fids(filenum),[0 0 0 0 0 0 0],'int32');
+        filenum = filenum + 1; 
+    end
+end
+
+%fwrite(fids(1),"did it");
+beamletHeaders = zeros(length(fids),5);   %fill with numbers that go in header
+%those are numParticles, numPhotons, maxEnergy, minElecEnergy, and NINC_PHSP_SHORT
+%the last one we just take from the original phsp file.
+
+%loop over all the particles in the array:
+for i = 1:7:length(phspData.Data.allTheStuff)
+    
+    %see which beamlet it's within (boundaries included):
+    I = find( ( double(phspData.Data.allTheStuff(i+2)*10 - allBeamlets(:,1)/2 >= -2.5/2 || phspData.Data.allTheStuff(i+2)*10 + allBeamlets(:,1)/2 <= 2.5/2)) & ( double(phspData.Data.allTheStuff(i+3)*10 - allBeamlets(:,2)/2 >= -2.5/2 || phspData.Data.allTheStuff(i+3)*10 + allBeamlets(:,2)/2 <= 2.5/2)) );
+    %check if it shares a border, i.e. I > 1 (and must be < 4):
+    if (length(I)>1)
+        inBeamletNum = I(end);
+    else
+        inBeamletNum = I(1);
+    end
+    headerNumbers(inBeamletNum,1) = headerNumbers(inBeamletNum,1)+1;
+    if(charges( (i-1)/7 + 1 ) == 0)
+       headerNumbers(inBeamletNum,2) = headerNumbers(inBeamletNum,2) + 1;
+    end
+    fwrite(fid(inBeamletNum),phspData.Data.allTheStuff(i:i+6),'single');
+    
+    if(maxEnergy(inBeamletNum) < double(phspData.Data.allTheStuff(i+1)))
+        maxEnergy(inBeamletNum) = double(phspData.Data.allTheStuff(i+1));
+    end
+    %check if it's an electron and its energy is smaller than min elec
+    %energy for the given beamlet:
+    if( (charges( (i-1)/7 + 1 ) == -1) & (minEnergy(inBeamletNum) > double(phspData.Data.allTheStuff(i+1))))
+        minEnergy(inBeamletNum) = double(phspData.Data.allTheStuff(i+1));
+    end
+end
+
+clear allBeamlets;
+
+%go back through the files and write their headers:
+for(i = 1:length(fids))
+    fseek(fids(i),0,'bof');
+    fwrite(fids(i), header.Data.mode, 'int8');
+    fwrite(fids(i), headerNumbers(i,1),'int32'); %write the number of particles
+    fwrite(fids(i), headerNumbers(i,2),'int32'); %number of photons
+    fwrite(fids(i), maxEnergy(i),'single');    %max kinetic energy
+    fwrite(fids(i), minEnergy(i),'single');    %min kinetic energy
+    fwrite(fids(i), header.Data.NINC_PHSP_SHORT,'single');
+    fwrite(fids(i),[0 0 0],'int8');
+end
+
+fclose all;
+clear fids;
+
+%in my phsp read-in, it's a repeating column vector of the values, going:
 %latch, energy, x, y, u, v, wt --and then repeat.
 %to access just one data type as an array, we go like
 % A(first_one:7:last_one)
 %first_one for x is 3. Last_one is end of array - 4
 %skip is 7.
-%index in actual vector is start + skip*index-1)
+%index in actual vector is start + skip*(index-1)
 
 %so finally to get an array of just x, we want
-%m2.Data.allTheStuff(3:7:length(m2.Data.allTheStuff))
-%for y, we want: m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))
+%phspData.Data.allTheStuff(3:7:length(phspData.Data.allTheStuff))
+%for y, we want: phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))
+% 
+% for x = xmin:5:xmax
+%     for y = ymin:5:ymax
+%         if(x == xmax && y == ymax)
+%             I = find( ( (double(phspData.Data.allTheStuff(3:7:length(phspData.Data.allTheStuff)))*10 - x/2) >= -2.5/2 & (allTheStuff(3:7:length(phspData.Data.allTheStuff))*10 - x/2) <= 2.5/2 ) & ( (phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))*10 - y/2) >= -2.5/2 & (phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))*10 - y/2) <= 2.5/2 ) ); 
+%             I = find( ( (phspData.Data.allTheStuff(3:7:length(phspData.Data.allTheStuff))*10 - x/2) >= -2.5/2 & (allTheStuff(3:7:length(phspData.Data.allTheStuff))*10 - x/2) <= 2.5/2 ) & ( (phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))*10 - y/2) >= -2.5/2 & (phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))*10 - y/2) <= 2.5/2 ) ); 
+%             
+%         elseif(x==xmax)
+%             I = find( ( (phspData.Data.allTheStuff(3:7:length(phspData.Data.allTheStuff))*10 - x/2) >= -2.5/2 & (allTheStuff(3:7:length(phspData.Data.allTheStuff))*10 - x/2) <= 2.5/2 ) & ( (phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))*10 - y/2) >= -2.5/2 & (phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))*10 - y/2) < 2.5/2 ) ); 
+%         elseif(y==ymax)
+%             I = find( ( (phspData.Data.allTheStuff(3:7:length(phspData.Data.allTheStuff))*10 - x/2) >= -2.5/2 & (allTheStuff(3:7:length(phspData.Data.allTheStuff))*10 - x/2) < 2.5/2 ) & ( (phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))*10 - y/2) >= -2.5/2 & (phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))*10 - y/2) <= 2.5/2 ) ); 
+%         else
+%             I = find( ( (phspData.Data.allTheStuff(3:7:length(phspData.Data.allTheStuff))*10 - x/2) >= -2.5/2 & (allTheStuff(3:7:length(phspData.Data.allTheStuff))*10 - x/2) < 2.5/2 ) & ( (phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))*10 - y/2) >= -2.5/2 & (phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))*10 - y/2) < 2.5/2 ) ); 
+%         end
+%         
+%         %now all uses of the indices in I must instead of having I(i) or
+%         %whatever must have starting + skip*(I(i)-1)
+%         %with skip = 7 and starting = 3 for x, 4 for y
+% 
+%         % energies, charges, and electron energies
+%         importantStuffs = zeros(length(I),3);
+%         eindex = 1;
+%         for i = 1:length(I)
+%            %need charges, max energies
+%            importantStuffs(i,1) = phspArray(I(i),5);  %energies
+%            importantStuffs(i,2) = charges(I(i)); %charges
+%            
+%            if(importantStuffs(i,2) == -1)
+%               importantStuffs(eindex,3) = importantStuffs(i,1); 
+%               eindex = eindex + 1;
+%            end
+%         end
+% 
+%         
+%         phspFile = fullfile(phspPath, strcat(filebase,num2str(n),'.egsphsp1'));
+%         fid = fopen(phspFile,'w');
+%         
+% 
+%         fwrite(fid, m.Data.mode, 'int8');
+%         fwrite(fid, length(I),'int32'); %write the number of particles
+%         fwrite(fid, length(importantStuffs(:,2) == 0),'int32'); %number of photons
+%         fwrite(fid, max(abs(importantStuffs(:,1))),'single');    %max kinetic energy
+%         
+%         % now get the min electron energy:
+%         fwrite(fid, min(abs(importantStuffs(1:eindex,3))),'single');    %min kinetic energy
+% 
+%         fwrite(fid, m.Data.NINC_PHSP_SHORT,'single');
+%         
+%         numParticles(n) = length(I);
+%         
+%         
+%         %header finished, now write those weird 3 bytes that are formatted in:
+%         fwrite(fid, [0 0 0],'uint8');
+% 
+%         %And write the rest of the stuff
+%         for i = 1:length(I)
+%             fwrite(fid, phspArray(I(i),1), 'uint8');
+%             fwrite(fid, phspArray(I(i),2), 'uint8');
+%             fwrite(fid, phspArray(I(i),3),'uint8');
+%             fwrite(fid, phspArray(I(i),4),'uint8');
+%             fwrite(fid, abs(phspArray(I(i),5)),'single'); %want +ve energy. The -ve energy setting isn't applicable here
+%             fwrite(fid, phspArray(I(i),6),'single');
+%             fwrite(fid, phspArray(I(i),7),'single');
+%             fwrite(fid, phspArray(I(i),8),'single');
+%             fwrite(fid, phspArray(I(i),9),'single');
+%             fwrite(fid, phspArray(I(i),10),'single');
+%         end
+%         scatter( [(x+2.5)/2 (x-2.5)/2 (x+2.5)/2 (x-2.5)/2],[ (y + 2.5)/2 (y - 2.5)/2 (y - 2.5)/2 (y + 2.5)/2])
+%         fclose(fid);
+%         n = n + 1;
+%     end
+% end
 
-for x = xmin:5:xmax
-    for y = ymin:5:ymax
-        if(x == xmax && y == ymax)
-            I = find( ( (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - x/2) >= -2.5/2 & (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - x/2) <= 2.5/2 ) & ( (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - y/2) >= -2.5/2 & (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - y/2) <= 2.5/2 ) ); 
-            I = find( ( (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - x/2) >= -2.5/2 & (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - x/2) <= 2.5/2 ) & ( (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - y/2) >= -2.5/2 & (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - y/2) <= 2.5/2 ) ); 
-            
-        elseif(x==xmax)
-            I = find( ( (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - x/2) >= -2.5/2 & (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - x/2) <= 2.5/2 ) & ( (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - y/2) >= -2.5/2 & (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - y/2) < 2.5/2 ) ); 
-        elseif(y==ymax)
-            I = find( ( (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - x/2) >= -2.5/2 & (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - x/2) < 2.5/2 ) & ( (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - y/2) >= -2.5/2 & (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - y/2) <= 2.5/2 ) ); 
-        else
-            I = find( ( (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - x/2) >= -2.5/2 & (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - x/2) < 2.5/2 ) & ( (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - y/2) >= -2.5/2 & (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - y/2) < 2.5/2 ) ); 
-        end
-        
-        %now all uses of the indices in I must instead of having I(i) or
-        %whatever must have starting + skip*(I(i)-1)
-        %with skip = 7 and starting = 3 for x, 4 for y
-        
-        allBeamlets(n,:) = [x y];
-        
-        phspFile = fullfile(phspPath, strcat(filebase,num2str(n),'.egsphsp1'));
-        fid = fopen(phspFile,'w');
 
-        % energies, charges, and electron energies
-        importantStuffs = zeros(length(I),3);
-        eindex = 1;
-        for i = 1:length(I)
-           %need charges, max energies
-           importantStuffs(i,1) = phspArray(I(i),5);  %energies
-           importantStuffs(i,2) = charges(I(i)); %charges
-           
-           if(importantStuffs(i,2) == -1)
-              importantStuffs(eindex,3) = importantStuffs(i,1); 
-              eindex = eindex + 1;
-           end
-        end
-
-
-        fwrite(fid, m.Data.mode, 'int8');
-        fwrite(fid, length(I),'int32'); %write the number of particles
-        fwrite(fid, length(importantStuffs(:,2) == 0),'int32'); %number of photons
-        fwrite(fid, max(abs(importantStuffs(:,1))),'single');    %max kinetic energy
-        
-        % now get the min electron energy:
-        fwrite(fid, min(abs(importantStuffs(1:eindex,3))),'single');    %min kinetic energy
-
-        fwrite(fid, m.Data.NINC_PHSP_SHORT,'single');
-        
-        numParticles(n) = length(I);
-        
-        
-        %header finished, now write those weird 3 bytes that are formatted in:
-        fwrite(fid, [0 0 0],'uint8');
-
-        %And write the rest of the stuff
-        for i = 1:length(I)
-            fwrite(fid, phspArray(I(i),1), 'uint8');
-            fwrite(fid, phspArray(I(i),2), 'uint8');
-            fwrite(fid, phspArray(I(i),3),'uint8');
-            fwrite(fid, phspArray(I(i),4),'uint8');
-            fwrite(fid, abs(phspArray(I(i),5)),'single'); %want +ve energy. The -ve energy setting isn't applicable here
-            fwrite(fid, phspArray(I(i),6),'single');
-            fwrite(fid, phspArray(I(i),7),'single');
-            fwrite(fid, phspArray(I(i),8),'single');
-            fwrite(fid, phspArray(I(i),9),'single');
-            fwrite(fid, phspArray(I(i),10),'single');
-        end
-        scatter( [(x+2.5)/2 (x-2.5)/2 (x+2.5)/2 (x-2.5)/2],[ (y + 2.5)/2 (y - 2.5)/2 (y - 2.5)/2 (y + 2.5)/2])
-        fclose(fid);
-        n = n + 1;
-    end
-end
 
 %in a holistic perspective, probably the best naming conventioin for the
 %file names would just be *1, *2, *3,... because then it's easier to
@@ -242,8 +297,8 @@ end
 %loop over beams ==> now just need to change stf(1) to stf(j) everywhere
 %tic;
 %for j = 1:length(stf)
-    scatter(allTheStuff(3:7:length(m2.Data.allTheStuff))*10,m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10)
-    hold on
+%     scatter(allTheStuff(3:7:length(phspData.Data.allTheStuff))*10,phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))*10)
+%     hold on
 %     j = 1;  %so I only have to look at beam 1 right now
 %     tic;
 %     %loop over beamlets/rays in beam
@@ -268,14 +323,14 @@ end
 %         
 %         %tic;
 % %         if(is nothing to its right _and_ above it)
-% %             I = find( ( (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) >= -2.5/2 & (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) <= 2.5/2 ) & ( (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) >= -2.5/2 & (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) <= 2.5/2 ) );
+% %             I = find( ( (allTheStuff(3:7:length(phspData.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) >= -2.5/2 & (allTheStuff(3:7:length(phspData.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) <= 2.5/2 ) & ( (phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) >= -2.5/2 & (phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) <= 2.5/2 ) );
 % %         elseif(is nothing above it)
-% %             I = find( ( (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) >= -2.5/2 & (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) < 2.5/2 ) & ( (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) >= -2.5/2 & (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) <= 2.5/2 ) );
+% %             I = find( ( (allTheStuff(3:7:length(phspData.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) >= -2.5/2 & (allTheStuff(3:7:length(phspData.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) < 2.5/2 ) & ( (phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) >= -2.5/2 & (phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) <= 2.5/2 ) );
 % %         elseif(is nothing to its right)
-% %             I = find( ( (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) >= -2.5/2 & (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) <= 2.5/2 ) & ( (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) >= -2.5/2 & (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) < 2.5/2 ) );
+% %             I = find( ( (allTheStuff(3:7:length(phspData.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) >= -2.5/2 & (allTheStuff(3:7:length(phspData.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) <= 2.5/2 ) & ( (phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) >= -2.5/2 & (phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) < 2.5/2 ) );
 % %         else
 %             %is just inside the beam, not on the edges
-%             I = find( ( (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) >= -2.5/2 & (allTheStuff(3:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) < 2.5/2 ) & ( (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) >= -2.5/2 & (m2.Data.allTheStuff(4:7:length(m2.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) < 2.5/2 ) );
+%             I = find( ( (allTheStuff(3:7:length(phspData.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) >= -2.5/2 & (allTheStuff(3:7:length(phspData.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(1)/2) < 2.5/2 ) & ( (phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) >= -2.5/2 & (phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))*10 - stf(j).ray(n).rayPos_bev(3)/2) < 2.5/2 ) );
 %         %end
 %         %toc;    %would take ~10.5 minutes per beamlet for 10^7 particles
 % 
@@ -353,8 +408,10 @@ end
 %hold off
 
 clear m;
-clear m2;
+clear phspData;
 
 % [communist geologists]
 % Ivan: look at all this mica
 % Igor: no comrade, it's ourca.
+
+end

@@ -104,7 +104,7 @@ for n = 1:length(stf)
             fprintf(file,"/data/data060/shussain/egsnrc/dosxyznrc/%s\n",sourcephspfile);
 
            
-            nhistories = 1000000;
+            nhistories = 10000000;
             
             %print record 13:
             fprintf(file,"%d, 0, 99, 33, 97, 100.0, 0, 0, 0, 0, , -1, 0, 0, 1, 0, 0\n",nhistories);

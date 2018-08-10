@@ -67,7 +67,7 @@ if (m.Data.mode == 'MODE0')
         charges(count) = charge;
         count = count + 1;
     end
-    %clear m3;
+    clear m3;
     
 
     fprintf("Got the charges. Now the rest...\n");
