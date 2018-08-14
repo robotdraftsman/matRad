@@ -34,7 +34,7 @@ if(numParticlesToSkip >= double(m.Data.NUM_PHSP_TOT))
    phspData = [0];
    lastParticle = -1;  %interpret this as meaning it's done
    "c"
-   quit;
+   error("you're telling me to skip past all the particles, and then some...");
 end
 
 %read everything after the header:

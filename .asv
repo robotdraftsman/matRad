@@ -6,6 +6,4 @@ vmc++/run/*
 ssh2*/*
 ganymed*
 txtmsg_create/*
-*.txt
-beamletPHSPfile*/
-*.dos
+*
