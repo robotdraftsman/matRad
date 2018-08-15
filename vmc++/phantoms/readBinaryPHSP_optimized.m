@@ -13,6 +13,7 @@ function [m m2 charges lastParticle numParticlesLeft] = readBinaryPHSP_optimized
 
 %if want to read it all in at once:
 %readThisMuch = double(m.Data.NUM_PHSP_TOT);
+example_txtmsg('Large PHSP file read-in:','Read the header. Now check that user inputs make sense...');
 
 readOffset = 28 + numParticlesToSkip*28;
 %when running this 1M particles at a time:
@@ -34,6 +35,7 @@ if(numParticlesToSkip >= double(m.Data.NUM_PHSP_TOT))
    phspData = [0];
    lastParticle = -1;  %interpret this as meaning it's done
    "c"
+   example_txtmsg('Large PHSP file read-in:','Inputs said to skip way wast all the particles...no can do, buddy. THIS ENDS HERE >:(');
    error("you're telling me to skip past all the particles, and then some...");
 end
 
@@ -45,12 +47,14 @@ if (m.Data.mode == 'MODE0')
     m3 = memmapfile(phspFile,'Offset',readOffset,...
         'Format',{'uint8',[readThisMuch*28 1],'LATCHandEverythingElse'},'Repeat',1);
     
+    example_txtmsg('Large PHSP file read-in:','Extracting the charges...');
+    
     %now to get the required information out of latch
-    charges = zeros(length(readThisMuch),1);
+    charges = inf(length(readThisMuch),1);
     %for complement representation of signed integers:
-    %(would probbaly take around half an hour for all 36 million particles)
+    tic;
     count = 1;
-    for i = 1:28:length(m3.Data.LATCHandEverythingElse)
+    for i = 4:28:length(m3.Data.LATCHandEverythingElse)
         getBits = dec2bin(m3.Data.LATCHandEverythingElse(i));
         abyte = '00000000';
         abyte(9-length(getBits):8) = getBits(:);
@@ -66,10 +70,15 @@ if (m.Data.mode == 'MODE0')
         end
         charges(count) = charge;
         count = count + 1;
+        if (mod(count,round(m.Data.NUM_PHSP_TOT/10))==0)
+            didSuch = strcat('done=',num2str((count)/m.Data.NUM_PHSP_TOT),'% of the particles charges!');
+            example_txtmsg('PHSP file dividing process:',didSuch);
+        end
     end
     clear m3;
-    
+    toc;
 
+    example_txtmsg('Large PHSP file read-in:','Got the charges. Now the rest...');
     fprintf("Got the charges. Now the rest...\n");
 
     m2 = memmapfile(phspFile,'Offset',readOffset,...
@@ -83,5 +92,7 @@ end
 
 strMode = char(m.Data.mode);
 lastParticle = numParticlesToSkip + readThisMuch; %later use as numParticlesToSkip
+
+example_txtmsg('PHSP file dividing process:','Finished reading in the file - all done with this function :)');
 
 end

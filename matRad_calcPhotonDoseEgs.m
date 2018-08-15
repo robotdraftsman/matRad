@@ -24,9 +24,9 @@ function dij = matRad_calcPhotonDoseVmc(ct,stf,pln,cst,nCasePerBixel,numOfParall
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % default: dose influence matrix computation
-if ~exist('calcDoseDirect','var')
-    calcDoseDirect = false;
-end
+% if ~exist('calcDoseDirect','var')
+%     calcDoseDirect = false;
+% end
 
 % set output level. 0 = no vmc specific output. 1 = print to matlab cmd.
 % 2 = open in terminal(s)
@@ -38,6 +38,8 @@ if ~isdeployed % only if _not_ running as standalone
     addpath(fullfile(matRadRootDir,'vmc++'))
 end
 
+%so I keep these guys:
+
 % meta information for dij
 dij.numOfBeams         = pln.propStf.numOfBeams;
 dij.numOfVoxels        = prod(ct.cubeDim);
@@ -48,6 +50,8 @@ dij.numOfRaysPerBeam   = [stf(:).numOfRays];
 dij.totalNumOfBixels   = sum([stf(:).totalNumOfBixels]);
 dij.totalNumOfRays     = sum(dij.numOfRaysPerBeam);
 
+%maybe not these (look into what calcDoseDirect is):
+
 % check if full dose influence data is required
 if calcDoseDirect 
     numOfColumnsDij           = length(stf);
@@ -56,6 +60,8 @@ else
     numOfColumnsDij           = dij.totalNumOfBixels;
     numOfBixelsContainer = ceil(dij.totalNumOfBixels/10);
 end
+
+%keep these...:
 
 % set up arrays for book keeping
 dij.bixelNum = NaN*ones(numOfColumnsDij,1);
@@ -73,12 +79,14 @@ for i = 1:dij.numOfScenarios
     dij.physicalDose{i} = spalloc(prod(ct.cubeDim),numOfColumnsDij,1);
 end
 
-%PRETTY SURE WE COMMENTED THIS OUT (I uncommented this IN CALCvMC):
+%PRETTY SURE WE COMMENTED THIS OUT (I uncommented this calcPhotonDoseVmc):
 % set environment variables for vmc++
 %if exist(['vmc++' filesep 'bin'],'dir') ~= 7
 %    error(['Could not locate vmc++ environment. ' ...
 %          'Please provide the files in the correct folder structure at matRadroot' filesep 'vmc++.']);
 %else
+
+%need to create EGSnrc paths and replace these with those...:
     VMCPath     = fullfile(pwd , 'vmc++');
     runsPath    = fullfile(VMCPath, 'runs');
     phantomPath = fullfile(VMCPath, 'phantoms');
@@ -95,6 +103,9 @@ end
 
 % set consistent random seed (enables reproducibility)
 rng(0);
+
+
+%pretty sure we don't need this stuff:
 
 % set number of photons simulated per bixel and number of parallel MC simulations if not specified by user
 if nargin < 5
@@ -127,7 +138,9 @@ elseif isunix
              ' in vmc++ calculations.'])    
     
 end
-    
+
+%keeping these - check that the absolute calibration factor is good tho
+
 % set relative dose cutoff for storage in dose influence matrix
 relDoseCutoff = 10^(-3);
 
@@ -139,6 +152,9 @@ relDoseCutoff = 10^(-3);
 % fieldsize@IC = 105mm x 105mm, phantomsize = 81 x 81 x 81 = 243mm x 243mm x 243mm
 % rel_Dose_cutoff = 10^(-3), ncase = 500000/bixel
 absCalibrationFactorVmc = 99.818252282632300;
+
+
+%will not need these:
 
 % set general vmc++ parameters
 % 1 source
@@ -172,9 +188,16 @@ VmcOptions.scoringOptions.doseOptions.scoreDoseToWater  = 'yes';           % if 
 VmcOptions.scoringOptions.outputOptions.name            = 'CT';            % geometry for which dose output is created (geometry has to be scored)
 VmcOptions.scoringOptions.outputOptions.dumpDose        = 2;               % output format (1: format=float, Dose + deltaDose; 2: format=short int, Dose)
 
+
+%obv. a keeper:
+
 % export CT cube as ASCII file for EGSnrc
-%also get the x,y,z coordinates of the centre of the ct cube
+%also get the x,y,z coordinates of the centre of the ct cube (don't think I
+%need to keep this part though...can't see any later application for it?)
 ctCubeCentre = matRad_exportCtEgs(ct, fullfile(phantomPath, 'matRad_CT.egsphant'));
+
+%don't think these are necessary:
+%(but maybe look into this voxels inside the patient thing...)
 
 % take only voxels inside patient
 V = [cst{:,4}];
@@ -184,6 +207,11 @@ writeCounter                  = 0;
 readCounter                   = 0;
 maxNumOfParallelMcSimulations = 0;
 
+
+
+
+
+
 % initialize waitbar
 figureWait = waitbar(0,'EGSnrc photon dose influence matrix calculation.. ');
 
@@ -191,7 +219,7 @@ fprintf("matRad: EGSnrc photon dose calculation... ");
 
 
 % %%%%% game plan stuff:
-% Have yet to filter out unnecessary stuff from above
+% Have yet to remove the unnecessary stuff from above
 % What this needs to do:
 % run in several modes. Mode depends on what has already been done, e.g.
 % on whether the CT has already been converted to .egsphant, whether the
@@ -201,7 +229,8 @@ fprintf("matRad: EGSnrc photon dose calculation... ");
 % are on the cluster. If not, generate egsinp, send them to the cluster,
 % prompt user to do the necessary cluster things, etc.
 % 
-% finally, when all that's together, run the below part.
+% finally, when all that's together, run the below part, which reads the
+% .dos file from each beamlet in each beam into the dij matrix
 % 
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%
