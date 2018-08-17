@@ -8,7 +8,7 @@ function headers = writeBinaryPHSP_optimized(phspData,charges,header)
 
 %test out a beamlet in first beam:
 %gets all the points in a given beamlet:
-phspPath = 'beamletPHSPfiles';
+phspPath = 'EGSnrc/beamletPHSPfiles';
 filebase = 'dividedPhsp36M';
 
 xmin = -45; %these are in mm
@@ -67,6 +67,7 @@ end
 tic;
 %loop over all the particles in the array:
 example_txtmsg('PHSP file dividing process:','looping over the particles in the big file: populating beamlets...');
+notifyIncrement = 3760000;
 for i = 1:7:length(phspData.Data.allTheStuff)
     
     %see which beamlet it's within (boundaries included):
@@ -74,28 +75,33 @@ for i = 1:7:length(phspData.Data.allTheStuff)
     %check if it shares a border, i.e. I > 1 (and must be < 4):
     if (length(I)>1)
         inBeamletNum = I(end);
-    else
+    elseif (length(I) == 1)
         inBeamletNum = I;
+    else
+    	inBeamletNum = 0;
     end
     
+    %if this particle is in one of the beamlets, do all the stuff:
     if (inBeamletNum ~= 0)
         headerNumbers(inBeamletNum,1) = headerNumbers(inBeamletNum,1)+1;
         if(charges( (i-1)/7 + 1 ) == 0)
            headerNumbers(inBeamletNum,2) = headerNumbers(inBeamletNum,2) + 1;
         end
-        fwrite(fids(inBeamletNum),phspData.Data.allTheStuff(i:i+6),'single');
+        fwrite(fids(inBeamletNum),phspData.Data.allTheStuff(i),'single');   %write LATCH
+        fwrite(fids(inBeamletNum),abs(phspData.Data.allTheStuff(i+1)),'single');    %write energy (but we don't want the minus signs so just using abs value)
+        fwrite(fids(inBeamletNum),phspData.Data.allTheStuff(i+2:i+6),'single'); %write the rest (x,y,u,v,wt)
 
-        if(maxEnergy(inBeamletNum) < double(phspData.Data.allTheStuff(i+1)))
-            maxEnergy(inBeamletNum) = double(phspData.Data.allTheStuff(i+1));
+        if(maxEnergy(inBeamletNum) < abs(double(phspData.Data.allTheStuff(i+1))))
+            maxEnergy(inBeamletNum) = abs(double(phspData.Data.allTheStuff(i+1)));
         end
         %check if it's an electron and its energy is smaller than min elec
         %energy for the given beamlet:
-        if( (charges( (i-1)/7 + 1 ) == -1) & (minEnergy(inBeamletNum) > double(phspData.Data.allTheStuff(i+1))))
-            minEnergy(inBeamletNum) = double(phspData.Data.allTheStuff(i+1));
+        if( (charges( (i-1)/7 + 1 ) == -1) & (minEnergy(inBeamletNum) > abs(double(phspData.Data.allTheStuff(i+1)))))
+            minEnergy(inBeamletNum) = abs(double(phspData.Data.allTheStuff(i+1)));
         end
     end
-    if (mod((i+6)/7,round(header.Data.NUM_PHSP_TOT/10))==0)
-        didSuch = strcat('done=',num2str(((i+6)/7)/m.Data.NUM_PHSP_TOT),'% of the particles!');
+    if (mod((i+6)/7,notifyIncrement)==0)
+        didSuch = strcat('percent of particles assigned to beamlets = ',num2str((double((i+6)/7)/double(header.Data.NUM_PHSP_TOT))*100));
         example_txtmsg('PHSP file dividing process:',didSuch);
     end
 end

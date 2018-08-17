@@ -54,6 +54,7 @@ if (m.Data.mode == 'MODE0')
     %for complement representation of signed integers:
     tic;
     count = 1;
+    notifyIncrement = 3760000;
     for i = 4:28:length(m3.Data.LATCHandEverythingElse)
         getBits = dec2bin(m3.Data.LATCHandEverythingElse(i));
         abyte = '00000000';
@@ -70,9 +71,9 @@ if (m.Data.mode == 'MODE0')
         end
         charges(count) = charge;
         count = count + 1;
-        if (mod(count,round(m.Data.NUM_PHSP_TOT/10))==0)
-            didSuch = strcat('done=',num2str((count)/m.Data.NUM_PHSP_TOT),'% of the particles charges!');
-            example_txtmsg('PHSP file dividing process:',didSuch);
+        if (mod(count,notifyIncrement)==0)
+            didSuch = strcat('percent of charges extracted = ',num2str((double(count)/double(m.Data.NUM_PHSP_TOT))*100));
+            example_txtmsg('Large PHSP file reading process:',didSuch);
         end
     end
     clear m3;
@@ -93,6 +94,6 @@ end
 strMode = char(m.Data.mode);
 lastParticle = numParticlesToSkip + readThisMuch; %later use as numParticlesToSkip
 
-example_txtmsg('PHSP file dividing process:','Finished reading in the file - all done with this function :)');
+example_txtmsg('Large PHSP file read-in:','Finished reading in the file - all done with this function :)');
 
 end

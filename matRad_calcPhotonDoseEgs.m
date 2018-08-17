@@ -1,4 +1,4 @@
-function dij = matRad_calcPhotonDoseVmc(ct,stf,pln,cst,nCasePerBixel,numOfParallelMCSimulations,calcDoseDirect)
+function dij = matRad_calcPhotonDoseVmc(ct,stf,pln,cst,nCasePerBixel,calcDoseDirect)
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % matRad vmc++ photon dose calculation wrapper
 % 
@@ -24,9 +24,9 @@ function dij = matRad_calcPhotonDoseVmc(ct,stf,pln,cst,nCasePerBixel,numOfParall
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % default: dose influence matrix computation
-% if ~exist('calcDoseDirect','var')
-%     calcDoseDirect = false;
-% end
+if ~exist('calcDoseDirect','var')
+    calcDoseDirect = false;
+end
 
 % set output level. 0 = no vmc specific output. 1 = print to matlab cmd.
 % 2 = open in terminal(s)
@@ -38,7 +38,10 @@ if ~isdeployed % only if _not_ running as standalone
     addpath(fullfile(matRadRootDir,'vmc++'))
 end
 
-%so I keep these guys:
+egsinpbase = 'inputs';
+egsinpPath = '/Users/sakinahussain/Documents/GitHub/matRad/egsinpFiles';
+dosbase = 'inputs';
+dosPath = '/Users/sakinahussain/Documents/GitHub/matRad/EGSdosFiles';
 
 % meta information for dij
 dij.numOfBeams         = pln.propStf.numOfBeams;
@@ -50,8 +53,6 @@ dij.numOfRaysPerBeam   = [stf(:).numOfRays];
 dij.totalNumOfBixels   = sum([stf(:).totalNumOfBixels]);
 dij.totalNumOfRays     = sum(dij.numOfRaysPerBeam);
 
-%maybe not these (look into what calcDoseDirect is):
-
 % check if full dose influence data is required
 if calcDoseDirect 
     numOfColumnsDij           = length(stf);
@@ -61,7 +62,6 @@ else
     numOfBixelsContainer = ceil(dij.totalNumOfBixels/10);
 end
 
-%keep these...:
 
 % set up arrays for book keeping
 dij.bixelNum = NaN*ones(numOfColumnsDij,1);
@@ -79,66 +79,6 @@ for i = 1:dij.numOfScenarios
     dij.physicalDose{i} = spalloc(prod(ct.cubeDim),numOfColumnsDij,1);
 end
 
-%PRETTY SURE WE COMMENTED THIS OUT (I uncommented this calcPhotonDoseVmc):
-% set environment variables for vmc++
-%if exist(['vmc++' filesep 'bin'],'dir') ~= 7
-%    error(['Could not locate vmc++ environment. ' ...
-%          'Please provide the files in the correct folder structure at matRadroot' filesep 'vmc++.']);
-%else
-
-%need to create EGSnrc paths and replace these with those...:
-    VMCPath     = fullfile(pwd , 'vmc++');
-    runsPath    = fullfile(VMCPath, 'runs');
-    phantomPath = fullfile(VMCPath, 'phantoms');
-
-    setenv('vmc_home',VMCPath);
-    setenv('vmc_dir',runsPath);
-    setenv('xvmc_dir',VMCPath);
-    
-    if isunix
-        system(['chmod a+x ' VMCPath filesep 'bin' filesep 'vmc_Linux.exe']);
-    end
-    
-%end
-
-% set consistent random seed (enables reproducibility)
-rng(0);
-
-
-%pretty sure we don't need this stuff:
-
-% set number of photons simulated per bixel and number of parallel MC simulations if not specified by user
-if nargin < 5
-    nCasePerBixel              = 5000;
-    if ispc
-        numOfParallelMCSimulations = 4;
-    elseif isunix
-        numOfParallelMCSimulations = 1;
-    end
-    
-    warning(['Number of photons simulated per bixel (nCasePerBixel) and number of parallel MC simulations (numOfParallelMCSimulations) not specified by user. ',...
-             'Use default settings with nCasePerBixel = ',num2str(nCasePerBixel),...
-             ' and numOfParallelMCSimulations = ',num2str(numOfParallelMCSimulations),...
-             ' in vmc++ calculations.'])
-elseif nargin < 6
-    if ispc
-        numOfParallelMCSimulations = 4;
-    elseif isunix
-        numOfParallelMCSimulations = 1;
-    end
-    
-    warning(['Number of parallel MC simulations (numOfParallelMCSimulations) not specified by user. ',...
-             'Use default settings with numOfParallelMCSimulations = ',num2str(numOfParallelMCSimulations),...
-             ' in vmc++ calculations.'])    
-elseif isunix
-    if numOfParallelMCSimulations > 1
-        numOfParallelMCSimulations = 1;
-    end
-    warning(['Running Unix environment: Number of parallel MC simulations (numOfParallelMCSimulations) set to default settings with numOfParallelMCSimulations = ',num2str(numOfParallelMCSimulations),...
-             ' in vmc++ calculations.'])    
-    
-end
-
 %keeping these - check that the absolute calibration factor is good tho
 
 % set relative dose cutoff for storage in dose influence matrix
@@ -151,53 +91,19 @@ relDoseCutoff = 10^(-3);
 % SAD = 1000mm, SCD = 500mm, bixelWidth = 5mm, IC = [240mm,240mm,240mm]
 % fieldsize@IC = 105mm x 105mm, phantomsize = 81 x 81 x 81 = 243mm x 243mm x 243mm
 % rel_Dose_cutoff = 10^(-3), ncase = 500000/bixel
-absCalibrationFactorVmc = 99.818252282632300;
+% absCalibrationFactorVmc = 99.818252282632300;
 
+%the below is: TOHCC calibration (10x10 cm2 field, depth=5cm, SAD = 100cm) 6.495E-17
+absCalibrationFactorEgs = 1/(6.495E-17);
 
-%will not need these:
-
-% set general vmc++ parameters
-% 1 source
-VmcOptions.beamletSource.myName       = 'source 1';                        % name of source
-VmcOptions.beamletSource.monitorUnits = 1;                                 
-VmcOptions.beamletSource.spectrum     = ['./spectra/var_6MV.spectrum'];    % energy spectrum source (only used if no mono-Energy given)
-VmcOptions.beamletSource.charge       = 0;                                 % charge (-1,0,1)
-% 2 transport parameter
-VmcOptions.McParameter.automatic_parameter = 'yes';                        % if yes, automatic transport parameters are used
-% 3 MC control
-VmcOptions.McControl.ncase  = nCasePerBixel;                               % number of histories
-VmcOptions.McControl.nbatch = 10;                                          % number of batches
-% 4 variance reduction
-VmcOptions.varianceReduction.repeatHistory      = 0.251;
-VmcOptions.varianceReduction.splitPhotons       = 'yes';   
-VmcOptions.varianceReduction.photonSplitFactor = -40;  
-% 5 quasi random numbers
-VmcOptions.quasi.base      = 2;                                                 
-VmcOptions.quasi.dimension = 60;                                             
-VmcOptions.quasi.skip      = 1;                                              
-% 6 geometry
-VmcOptions.geometry.XyzGeometry.methodOfInput = 'CT-PHANTOM';              % input method ('CT-PHANTOM', 'individual', 'groups') 
-VmcOptions.geometry.XyzGeometry.Ct            = 'CT';                      % name of geometry
-VmcOptions.geometry.XyzGeometry.CtFile        = ['./phantoms/matRad_CT.egsphant']; % path of density matrix (only needed if input method is 'CT-PHANTOM')
-
-
-% 7 scoring manager
-VmcOptions.scoringOptions.startInGeometry               = 'CT';            % geometry in which partciles start their transport
-VmcOptions.scoringOptions.doseOptions.scoreInGeometries = 'CT';            % geometry in which dose is recorded
-VmcOptions.scoringOptions.doseOptions.scoreDoseToWater  = 'yes';           % if yes output is dose to water
-VmcOptions.scoringOptions.outputOptions.name            = 'CT';            % geometry for which dose output is created (geometry has to be scored)
-VmcOptions.scoringOptions.outputOptions.dumpDose        = 2;               % output format (1: format=float, Dose + deltaDose; 2: format=short int, Dose)
-
-
-%obv. a keeper:
+phantomPath = 'EGSnrc/phantoms';
+phantomName = 'matRad_CT';
 
 % export CT cube as ASCII file for EGSnrc
 %also get the x,y,z coordinates of the centre of the ct cube (don't think I
 %need to keep this part though...can't see any later application for it?)
-ctCubeCentre = matRad_exportCtEgs(ct, fullfile(phantomPath, 'matRad_CT.egsphant'));
+ctCubeCentre = matRad_exportCtEgs(ct, fullfile(phantomPath, [phantomName,'.egsphant']));
 
-%don't think these are necessary:
-%(but maybe look into this voxels inside the patient thing...)
 
 % take only voxels inside patient
 V = [cst{:,4}];
@@ -232,16 +138,52 @@ fprintf("matRad: EGSnrc photon dose calculation... ");
 % finally, when all that's together, run the below part, which reads the
 % .dos file from each beamlet in each beam into the dij matrix
 % 
+% so file checking is: check if on computer. If not, ssh onto cluster and
+% check there. If not there, then generate the stuff
+% 
+% if there (here, on cluster...), read dose. If not there, create inputs.
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
+%check if we have the files:
+%first check for .dos files. If they're present, then great, go straight to
+%dose read-in. Don't even need to generate an egsphant file
+%If not, check for egsphant, egsinp and phsp files on the cluster. If they're there,
+%tell user to run dosxyz on them.
+%If the egsphant file is not there, check here. If here, transfer it to the
+%cluster. If not here, then generate the CT egsphant and transfer it.
+%If the egsip files are not there, check here. If they're here, transfer
+%them to the cluster. If they're not here, then generate them and transfer
+%them to the cluster.
+%If the phsp files aren't there, check here and if here, transfer them. If
+%they're not here either, then be very sad and tell the user to run
+%readANDwriteBinaryPHSP on their desired phsp source.
 
 
+%password = 
+
+clusterPath = '/data/data060/shussain/egsnrc/dosxyznrc';
+for i = 1:dij.numOfBeams % loop over all beams
+    for j = 1:stf(i).numOfRays % loop over all rays / for photons we only have one bixel per ray!
+        %check if dos exists here. If not, check cluster...
+        dosfile = strcat(dosbase,'Beam',num2str(i),'Beamlet',num2str(j),'.dos');
+        if (exist(dosfile) == 0)
+            %ssh onto cluster, tell ls 'filename', see if it's returned
+            try
+                scp_simple_get('tyr.physics.carleton.ca','shussain',password,dosfile,'/Users/sakinahussain/Documents/GitHub/matRad/EGSnrc/EGSdosFiles','/data/data060/shussain/egsnrc/dosxyznrc/')
+            catch
+                %if the try gives an error, the file's not there and we
+                %have to go about making it. So we check if the ingredients
+                %to make it are there (the egsinp file)
+            end
+        end
+    end
+end
 
 
 
 %%%%% reading in the .dos file from dosxyz into dij matrix:
-%still need to make this work with the naming scheme and stuff...
+% still need to make this work with the naming scheme and stuff...
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 for i = 1:dij.numOfBeams % loop over all beams
        
@@ -332,14 +274,23 @@ end
 
 
 % delete temporary files
-delete(fullfile(VMCPath, 'run_parallel_simulations.bat')); % batch file
 delete(fullfile(phantomPath, 'matRad_CT.egsphant'));     % egs phantom file
 
-for j = 1:maxNumOfParallelMcSimulations
-    delete(fullfile(runsPath, ['MCpencilbeam_temp_',num2str(mod(j-1,numOfParallelMCSimulations)+1),'.vmc'])); % vmc inputfile
-    delete(fullfile(runsPath, ['MCpencilbeam_temp_',num2str(mod(j-1,numOfParallelMCSimulations)+1),'_',...
-                                    VmcOptions.scoringOptions.doseOptions.scoreInGeometries,'.dos']));    % vmc outputfile
+%!! Ask if I should delete from cluster too, or just from the local PC?
+%for now can just make it print out a note saying to make sure the user
+%deletes it from the cluster as well
+
+for i = 1:length(stf)
+    for j = 1:stf(i).numOfRays
+        % deletes egsinp files:
+        delete(fullfile(egsinpPath, [egsinpbase,'Beam',num2str(i),'Beamlet',num2str(j),'.egsinp'])); % vmc inputfile
+        
+        % deletes the .dos files we made from 3ddose files:
+        delete(fullfile(dosPath, [dosbase,'Beam',num2str(i),'Beamlet',num2str(j),'.dos']));    % dosxyz output file in vmc output file format
+    end
 end
+    
+
 
 try
   % wait 0.1s for closing all waitbars
