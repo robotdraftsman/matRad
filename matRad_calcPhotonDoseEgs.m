@@ -102,7 +102,9 @@ phantomName = 'matRad_CT';
 % export CT cube as ASCII file for EGSnrc
 %also get the x,y,z coordinates of the centre of the ct cube (don't think I
 %need to keep this part though...can't see any later application for it?)
-ctCubeCentre = matRad_exportCtEgs(ct, fullfile(phantomPath, [phantomName,'.egsphant']));
+
+%##############################################
+%ctCubeCentre = matRad_exportCtEgs(ct, fullfile(phantomPath, [phantomName,'.egsphant']));
 
 
 % take only voxels inside patient
@@ -162,19 +164,44 @@ fprintf("matRad: EGSnrc photon dose calculation... ");
 
 %password = 
 
-clusterPath = '/data/data060/shussain/egsnrc/dosxyznrc';
+clusterPath = '/data/data060/shussain/egsnrc/dosxyznrc/';
 for i = 1:dij.numOfBeams % loop over all beams
     for j = 1:stf(i).numOfRays % loop over all rays / for photons we only have one bixel per ray!
         %check if dos exists here. If not, check cluster...
         dosfile = strcat(dosbase,'Beam',num2str(i),'Beamlet',num2str(j),'.dos');
         if (exist(dosfile) == 0)
-            %ssh onto cluster, tell ls 'filename', see if it's returned
+            %try to get the dos file from the cluster
             try
                 scp_simple_get('tyr.physics.carleton.ca','shussain',password,dosfile,'/Users/sakinahussain/Documents/GitHub/matRad/EGSnrc/EGSdosFiles','/data/data060/shussain/egsnrc/dosxyznrc/')
             catch
                 %if the try gives an error, the file's not there and we
                 %have to go about making it. So we check if the ingredients
-                %to make it are there (the egsinp file)
+                %to make it are there (the egsinp file). Ff it's not here,
+                % make the file and transfer it.
+                
+                %^^this requires a rewriting of the createEgsinp function
+                egsinpFile = strcat(egsinpbase,'Beam',num2str(i),'Beamlet',num2str(j),'.egsinp');
+                fromCluster = ssh2_simple_command('tyr.physics.carleton.ca','shussain',password,['ls ',clusterPath,egsinpFile]);
+                if (length(fromCluster{1}) == 0)    %if it's empty -> no file on cluster
+                    if (exist(egsinpFile) == 0) %if file doesn't exist locally
+                        %make the file
+                        %first gotta modify createEgsinp a bit so it
+                        %doesn't loop over all beams/beamlets -> just takes
+                        %input beam and beamlet numbers, runs as a fn.
+                        %difficulty here is making it match between the
+                        %numbering on the phsp files and on these files
+                        %Maybe just do all at once after loop, since in any
+                        %ordinary case, will either have all or none of the
+                        %egsinp files.
+                    end
+                    %scp it to the cluster:
+                    try
+                        scp_simple_put('tyr.physics.carleton.ca','shussain',password,egsinpFile,'/data/data060/shussain/egsnrc/dosxyznrc/','/Users/sakinahussain/Documents/GitHub/matRad/EGSnrc/egsinpFiles',thisegsinpfile); 
+                    catch
+                        fprintf("Didn't transfer the file %s to the cluster: encountered a problem :| \n");
+                    end
+                end
+                fprintf("Please run dosxyznrc on %s on the cluster, convert it to a .dos file, and bring it back to me (in /matRad/EGSdosFiles/).\n",egsinpFile);
             end
         end
     end
