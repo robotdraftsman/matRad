@@ -1,3 +1,4 @@
+function matRad_createEgsinp(stf, pln, phantomName, filebase, whichPhspBeamlet,n,m)
 %like createVmcInput except for making .egsinp files
 %function matRad_createEgsinp(n,i,filebase)
 %where n is beam number and i is beamlet number
@@ -44,12 +45,12 @@ egsinpPath = 'EGSnrc/egsinpFiles';
 %password = ;
 
 %loop over beams
-for n = 1:length(stf)
-    
-    m = 1;  %used to track which beamlet it is as numbered by stf struct
-    
-    %loop over beamlets (as numbered by phsp files)
-    for i = 1:length(whichBeamlets) %so it loops over ALL beamlets, not just those in the beam
+% for n = 1:length(stf)
+%     
+%     m = 1;  %used to track which beamlet it is as numbered by stf struct
+%     
+%     %loop over beamlets (as numbered by phsp files)
+%     for i = 1:length(whichBeamlets) %so it loops over ALL beamlets, not just those in the beam
         %so bc loops over all, I'll just make the egsinp file if the
         %relevant entry in the whichBeamlets matrix is 1. Else I keep going
         rec2 = 0;
@@ -60,13 +61,13 @@ for n = 1:length(stf)
         %in the beamletPhsp file names. Rather it is numbered as in the stf
         %struct
         
-        if(whichBeamlets(i,n) == 1)
-            phantomName = "matRad_CT.egsphant"; % = strcat(ct.dicomInfo.PatientName.GivenName,ct.dicomInfo.PatientName.MiddleName,ct.dicomInfo.PatientName.FamilyName,"_CT",".egsphant");
+        %if(whichBeamlets(i,n) == 1)
+            %phantomName = "matRad_CT.egsphant"; % = strcat(ct.dicomInfo.PatientName.GivenName,ct.dicomInfo.PatientName.MiddleName,ct.dicomInfo.PatientName.FamilyName,"_CT",".egsphant");
             %first one is to number beamlets to match phsp file numbers
             %second one is to number them according to the place in the stf struct
             %thisegsinpfile = strcat(filebase, 'Beam',num2str(n),'Beamlet',num2str(i), '.egsinp')
             thisegsinpfile = strcat(filebase, 'Beam',num2str(n),'Beamlet',num2str(m), '.egsinp');
-            sourcephspfile = strcat(phspfilebase,num2str(i), '.egsphsp1');
+            sourcephspfile = strcat(phspfilebase,num2str(whichPhspBeamlet), '.egsphsp1')
 
             %The angles in the matRad (DICOM) coordinate system:
             thetaC = 0; %madRad collimator angle
@@ -147,7 +148,9 @@ for n = 1:length(stf)
 %             catch
 %                 fprintf("Didn't transfer the file %s to the cluster: encountered a problem :/ \n");
 %             end
-            m = m + 1;
-        end
-    end
+%             m = m + 1;
+%         end
+%     end
+        %end
+
 end

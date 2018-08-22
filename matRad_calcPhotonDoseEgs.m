@@ -202,19 +202,15 @@ for i = 1:dij.numOfBeams % loop over all beams
                 %if the try gives an error, the file's not there and we
                 %have to go about making it. So we check if the ingredients
                 %to make it are there (the egsinp file). If it's not here,
-                % make the file and transfer it.
+                %make the file and transfer it.
                 
                 %^^this requires a rewriting of the createEgsinp function
                 egsinpFile = strcat(egsinpbase,'Beam',num2str(i),'Beamlet',num2str(j),'.egsinp');
                 fromCluster = ssh2_simple_command('tyr.physics.carleton.ca','shussain',password,['ls ',clusterPath,egsinpFile]);
                 if (length(fromCluster{1}) == 0)    %if it's empty -> no file on cluster
                     if (exist(egsinpFile) == 0) %if file doesn't exist locally, then make it
-                        %so I have modified whichBeamlets matrix; now just
-                        %pass that and the beam, beamlet numbers to
-                        %createEgsinp (and modify it to take these
-                        %arguments) so it'll make the file when called...
-                        %call w  whichBeamlets, beam number, beamlet number, file
-                        matRad_createEgsinp(whichBeamlets,i,j);
+                        %make the egsinp file for this beamlet:
+                        matRad_createEgsinp(stf,pln,phantomName,filebase,whichBeamlets(j,i),i,j);
                     end
                     %scp it to the cluster:
                     try
