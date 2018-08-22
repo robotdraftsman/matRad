@@ -12,27 +12,27 @@
 %first make matrix that tells which beamlets (numbered according to the
 %phsp files) are used in a given beam (is binary; 1 = used, 0 = not used):
 
-xmin = -45; %these are in mm
-xmax = 45;
-ymin = -45;
-ymax = 45;
-n = 1;
-allBeamlets = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1),2);
-
-for x = xmin:5:xmax
-    for y = ymin:5:ymax
-        allBeamlets(n,:) = [x y];
-        n = n + 1;
-    end
-end
-
-whichBeamlets = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1)  ,length(stf));  %beamlets included (index in a given row) for each beam (columns)
-for i = 1:length(stf)
-    for j = 1:stf(i).numOfRays
-        indexOfPhsp = find( (allBeamlets(:,1) == stf(i).ray(j).rayPos_bev(1)) & (allBeamlets(:,2) == stf(i).ray(j).rayPos_bev(3)) );    %find index in reference vector that corresponds to this beamlet
-        whichBeamlets(indexOfPhsp,i) = 1;
-    end
-end
+% xmin = -45; %these are in mm
+% xmax = 45;
+% ymin = -45;
+% ymax = 45;
+% n = 1;
+% allBeamlets = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1),2);
+% 
+% for x = xmin:5:xmax
+%     for y = ymin:5:ymax
+%         allBeamlets(n,:) = [x y];
+%         n = n + 1;
+%     end
+% end
+% 
+% whichBeamlets = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1)  ,length(stf));  %beamlets included (index in a given row) for each beam (columns)
+% for i = 1:length(stf)
+%     for j = 1:stf(i).numOfRays
+%         indexOfPhsp = find( (allBeamlets(:,1) == stf(i).ray(j).rayPos_bev(1)) & (allBeamlets(:,2) == stf(i).ray(j).rayPos_bev(3)) );    %find index in reference vector that corresponds to this beamlet
+%         whichBeamlets(indexOfPhsp,i) = 1;
+%     end
+% end
 
 
 %okay now make the phasespace files by looping over the beams and beamlets:

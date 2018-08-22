@@ -19,6 +19,9 @@ clear
 close all
 clc
 
+addpath('\Users\sakinahussain\Documents\GitHub\matRad\ssh2_v2_m1_r6');
+addpath('\Users\sakinahussain\Documents\GitHub\matRad\txtmsg_create');
+
 % load patient data, i.e. ct, voi, cst
 matfile = 'TG119';
 

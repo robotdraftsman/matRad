@@ -147,6 +147,8 @@ fprintf("matRad: EGSnrc photon dose calculation... ");
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
+
+
 %check if we have the files:
 %first check for .dos files. If they're present, then great, go straight to
 %dose read-in. Don't even need to generate an egsphant file
@@ -162,7 +164,30 @@ fprintf("matRad: EGSnrc photon dose calculation... ");
 %readANDwriteBinaryPHSP on their desired phsp source.
 
 
-%password = 
+xmin = -45; %these are in mm
+xmax = 45;
+ymin = -45;
+ymax = 45;
+n = 1;
+allBeamlets = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1),2);
+
+for x = xmin:5:xmax
+    for y = ymin:5:ymax
+        allBeamlets(n,:) = [x y];
+        n = n + 1;
+    end
+end
+
+whichBeamlets = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1)  ,length(stf));  %beamlets included (index in a given row) for each beam (columns)
+for i = 1:length(stf)
+    for j = 1:stf(i).numOfRays
+        indexOfPhsp = find( (allBeamlets(:,1) == stf(i).ray(j).rayPos_bev(1)) & (allBeamlets(:,2) == stf(i).ray(j).rayPos_bev(3)) );    %find index in reference vector that corresponds to this beamlet
+        whichBeamlets(j,i) = indexOfPhsp;
+    end
+end
+
+
+password =
 
 clusterPath = '/data/data060/shussain/egsnrc/dosxyznrc/';
 for i = 1:dij.numOfBeams % loop over all beams
@@ -176,23 +201,20 @@ for i = 1:dij.numOfBeams % loop over all beams
             catch
                 %if the try gives an error, the file's not there and we
                 %have to go about making it. So we check if the ingredients
-                %to make it are there (the egsinp file). Ff it's not here,
+                %to make it are there (the egsinp file). If it's not here,
                 % make the file and transfer it.
                 
                 %^^this requires a rewriting of the createEgsinp function
                 egsinpFile = strcat(egsinpbase,'Beam',num2str(i),'Beamlet',num2str(j),'.egsinp');
                 fromCluster = ssh2_simple_command('tyr.physics.carleton.ca','shussain',password,['ls ',clusterPath,egsinpFile]);
                 if (length(fromCluster{1}) == 0)    %if it's empty -> no file on cluster
-                    if (exist(egsinpFile) == 0) %if file doesn't exist locally
-                        %make the file
-                        %first gotta modify createEgsinp a bit so it
-                        %doesn't loop over all beams/beamlets -> just takes
-                        %input beam and beamlet numbers, runs as a fn.
-                        %difficulty here is making it match between the
-                        %numbering on the phsp files and on these files
-                        %Maybe just do all at once after loop, since in any
-                        %ordinary case, will either have all or none of the
-                        %egsinp files.
+                    if (exist(egsinpFile) == 0) %if file doesn't exist locally, then make it
+                        %so I have modified whichBeamlets matrix; now just
+                        %pass that and the beam, beamlet numbers to
+                        %createEgsinp (and modify it to take these
+                        %arguments) so it'll make the file when called...
+                        %call w  whichBeamlets, beam number, beamlet number, file
+                        matRad_createEgsinp(whichBeamlets,i,j);
                     end
                     %scp it to the cluster:
                     try
@@ -209,6 +231,8 @@ end
 
 
 
+
+
 %%%%% reading in the .dos file from dosxyz into dij matrix:
 % still need to make this work with the naming scheme and stuff...
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -222,6 +246,9 @@ for i = 1:dij.numOfBeams % loop over all beams
     end
     
     for j = 1:stf(i).numOfRays % loop over all rays / for photons we only have one bixel per ray!
+        
+        %can do the checking in here instead? But rn can at least test the
+        %checker up there...
         
         writeCounter = writeCounter + 1;
         
@@ -302,10 +329,6 @@ end
 
 % delete temporary files
 delete(fullfile(phantomPath, 'matRad_CT.egsphant'));     % egs phantom file
-
-%!! Ask if I should delete from cluster too, or just from the local PC?
-%for now can just make it print out a note saying to make sure the user
-%deletes it from the cluster as well
 
 for i = 1:length(stf)
     for j = 1:stf(i).numOfRays
