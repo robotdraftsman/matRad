@@ -14,9 +14,9 @@ clear;
 
 
 %phspFile = '40x40.egsphsp1';
-%phspFile = 'dividedPhsp36M17.egsphsp1';
+%phspFile = fullfile('EGSnrc/beamletPHSPfiles/','dividedPhsp36M181.egsphsp1');
 %phspFile = '1x1_old.egsphsp1';
-phspFile = '5x5_at_50cm.egsphsp1';
+phspFile = fullfile('EGSnrc/','5x5_at_50cm.egsphsp1');
 readThisMuch = inf;
 numParticlesToSkip = 0;
 
@@ -31,7 +31,6 @@ catch
 end
 
 fprintf("Wow just finished reading in the large phsp file!\nNow to split it up and write the little guis.\n");
-
 example_txtmsg('Reading and writing PHSP:','got the big file. Now split it up...');
 
 fclose all;

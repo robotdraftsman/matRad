@@ -21,6 +21,7 @@ clc
 
 addpath('\Users\sakinahussain\Documents\GitHub\matRad\ssh2_v2_m1_r6');
 addpath('\Users\sakinahussain\Documents\GitHub\matRad\txtmsg_create');
+addpath('\Users\sakinahussain\Documents\GitHub\matRad\EGSnrc');
 
 % load patient data, i.e. ct, voi, cst
 matfile = 'TG119';
@@ -45,6 +46,16 @@ pln.propStf.couchAngles     = [0 0 0 0 0]; % [?]
 pln.propStf.numOfBeams      = numel(pln.propStf.gantryAngles);
 pln.propStf.isoCenter       = ones(pln.propStf.numOfBeams,1) * matRad_getIsoCenter(cst,ct,0);
 
+% dose calculation settings
+pln.propDoseCalc.memorySaverPhoton          = false;
+pln.propDoseCalc.vmc                        = true;
+pln.propDoseCalc.vmcOptions.source          = 'phsp';
+pln.propDoseCalc.vmcOptions.phspBaseName    = '5x5_at_50cm';
+pln.propDoseCalc.vmcOptions.SCD             = 500;
+pln.propDoseCalc.vmcOptions.dumpDose        = 1;
+pln.propDoseCalc.vmcOptions.version         = 'Carleton';
+pln.propDoseCalc.vmcOptions.nCasePerBixel   = 5000;
+pln.propDoseCalc.vmcOptions.numOfParMCSim   = 8;
 
 % optimization settings
 pln.propOpt.bioOptimization = 'none'; % none: physical optimization;             const_RBExD; constant RBE of 1.1;
