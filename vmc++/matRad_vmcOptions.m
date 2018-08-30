@@ -34,12 +34,13 @@ VmcOptions.run.version = pln.propDoseCalc.vmcOptions.version;
 % rel_Dose_cutoff = 10^(-3), ncase = 500000/bixel
 switch pln.propDoseCalc.vmcOptions.version
     case 'Carleton'
-        switch pln.propDoseCalc.vmcOptions.source
-            case 'phsp'
-                load('CALIBRATION_PHANTOM_TOH_VMC.mat','d_50mm','d_50mm_error')
-                VmcOptions.run.absCalibrationFactorVmc      = 1./d_50mm;
-                VmcOptions.run.absCalibrationFactorVmc_err  = d_50mm_error./(d_50mm.^2);
-        end
+%         switch pln.propDoseCalc.vmcOptions.source
+%             case 'phsp'
+%                 %don't think we need this for Egs...
+%                 %load('CALIBRATION_PHANTOM_TOH_VMC.mat','d_50mm','d_50mm_error')
+%                 VmcOptions.run.absCalibrationFactorVmc      = 1./d_50mm;
+%                 VmcOptions.run.absCalibrationFactorVmc_err  = d_50mm_error./(d_50mm.^2);
+%         end
     case 'dkfz'
         VmcOptions.run.absCalibrationFactorVmc  = 99.818252282632300;
 end

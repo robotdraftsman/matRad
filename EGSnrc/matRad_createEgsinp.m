@@ -67,7 +67,7 @@ egsinpPath = 'EGSnrc/egsinpFiles';
             %second one is to number them according to the place in the stf struct
             %thisegsinpfile = strcat(filebase, 'Beam',num2str(n),'Beamlet',num2str(i), '.egsinp')
             thisegsinpfile = strcat(filebase, 'Beam',num2str(n),'Beamlet',num2str(m), '.egsinp');
-            sourcephspfile = strcat(phspfilebase,num2str(whichPhspBeamlet), '.egsphsp1')
+            sourcephspfile = strcat(phspfilebase,num2str(whichPhspBeamlet), '.egsphsp1');
 
             %The angles in the matRad (DICOM) coordinate system:
             thetaC = 0; %madRad collimator angle
@@ -79,14 +79,16 @@ egsinpPath = 'EGSnrc/egsinpFiles';
             %angles in dosxyznrc coordinate system:
             %from: Lixin Zhan, Runqing Jiang and Ernest K Osei, "Beam coordinate transformations from DICOM to DOSXYZnrc"
             %(the commented out transformation matrix T is from this too)
-            dosxyzTheta = radtodeg(acos(-sin(thetaT)*sin(thetaG)));
-            dosxyzPhi = radtodeg(atan( (-cos(thetaG))/(cos(thetaT)*sin(thetaG))));
+            dosxyzTheta = acosd(-sind(thetaT)*sind(thetaG));            
+            dosxyzPhi = atan2d( -cosd(thetaG),cosd(thetaT)*sind(thetaG) );
+            
+            
             dosxyzPhiCol = 0; %thetaC- 90 + radtodeg(atan( (-sin(thetaT)*cos(thetaG))/(cos(thetaT))));
 
 
             %isocentre in matRad CT phantom coordinate system-> don't need to transform
             %divide by 10 to convert from mm to cm
-
+            
             isocentre = [pln.propStf.isoCenter(n,1) pln.propStf.isoCenter(n,2) pln.propStf.isoCenter(n,3) ]/10;
 
             %valuess from 4th line/record in egsinp file:
