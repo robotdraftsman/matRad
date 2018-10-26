@@ -108,7 +108,7 @@ V = unique(vertcat(V{:}));
 % ignore densities outside of contours
 eraseCtDensMask = ones(dij.numOfVoxels,1);
 eraseCtDensMask(V) = 0;
-for i = 1:dij.numOfScenarios
+for i = 1:ct.numOfCtScen
     ct.cube{i}(eraseCtDensMask == 1) = 0;
 end
 
@@ -120,7 +120,7 @@ lateralCutoff = 50; % [mm]
 
 % toggle custom primary fluence on/off. if 0 we assume a homogeneous
 % primary fluence, if 1 we use measured radially symmetric data
-useCustomPrimFluenceBool = 0;
+useCustomPrimFluenceBool = 1;
 
 % 0 if field calc is bixel based, 1 if dose calc is field based
 isFieldBasedDoseCalc = strcmp(num2str(pln.propStf.bixelWidth),'field');
@@ -363,12 +363,17 @@ for i = 1:dij.numOfBeams % loop over all beams
                                                    geoDistV(ix),...
                                                    isoLatDistsX,...
                                                    isoLatDistsZ);
-                                               
+        %absolute calibration (17 September 2018, based on TOH):
+        %bixelDose = bixelDose;%1.060608521841230
+        bixelDose = bixelDose/1.060149653604169;    %most recent calibration factor based on changed dij sampling settings
+        %bixelDose = bixelDose/0.979913480223057;
         % sample dose only for bixel based dose calculation
         if ~isFieldBasedDoseCalc
-            r0   = 25;   % [mm] sample beyond the inner core
-            Type = 'radius';
-            [ix,bixelDose] = matRad_DijSampling(ix,bixelDose,radDepthV{1}(ix),rad_distancesSq,Type,r0);
+            %r0   = 25;   % [mm] sample beyond the inner core
+            %Type = 'radius';
+            d0   = 0.001;   % [mm] sample beyond the inner core
+            Type = 'dose';
+            [ix,bixelDose] = matRad_DijSampling(ix,bixelDose,radDepthV{1}(ix),rad_distancesSq,Type,d0);
         end   
         % Save dose for every bixel in cell array
         doseTmpContainer{mod(counter-1,numOfBixelsContainer)+1,1} = sparse(V(ix),1,bixelDose,dij.numOfVoxels,1);

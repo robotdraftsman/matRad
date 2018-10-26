@@ -113,7 +113,9 @@ else
         end
         subDose            = bixelDoseTail(ixTmp);                   % get tail dose in current cluster
         subIx              = ixTail(ixTmp);                          % get indices in current cluster
-        thresholdDose      = max(subDose);
+        %thresholdDose      = max(subDose);
+        % REVERT LATER? USED FOR DOSXYZ COMPARISON
+        thresholdDose      = relDoseThreshold * max(bixelDose);
         r                  = rand(numel(subDose),1);                 % get random samples
         ixSamp             = r<=(subDose/thresholdDose);
         NumSamples         = sum(ixSamp);

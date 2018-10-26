@@ -1,4 +1,3 @@
-
 function resultGUI = matRad_calcCubes(w,dij,cst,scenNum)
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % matRad computation of all cubes for the resultGUI struct which is used
