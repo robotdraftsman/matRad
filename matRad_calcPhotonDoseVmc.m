@@ -79,12 +79,19 @@ for i = 1:dij.numOfScenarios
 end
 
 % set environment variables for vmc++
+<<<<<<< HEAD
 cd(fileparts(mfilename('fullpath')))
 
 if exist(['vmc++' filesep 'bin'],'dir') ~= 7
     error(['Could not locate vmc++ environment. ' ...
         'Please provide the files in the correct folder structure at matRadroot' filesep 'vmc++.']);
 else
+=======
+% if exist(['vmc++' filesep 'bin'],'dir') ~= 7
+%     error(['Could not locate vmc++ environment. ' ...
+%           'Please provide the files in the correct folder structure at matRadroot' filesep 'vmc++.']);
+% else
+>>>>>>> e67257355027c064767fa52728cfcf7ebefb7197
     VMCPath     = fullfile(pwd , 'vmc++');
     switch pln.propDoseCalc.vmcOptions.version
         case 'Carleton'
@@ -102,7 +109,7 @@ else
         system(['chmod a+x ' VMCPath filesep 'bin' filesep 'vmc_Linux.exe']);
     end
     
-end
+% end
 
 % set consistent random seed (enables reproducibility)
 rng(0);
@@ -112,6 +119,9 @@ VmcOptions = matRad_vmcOptions(pln,ct);
 
 % export CT cube as binary file for vmc++
 matRad_exportCtVmc(ct, fullfile(phantomPath, 'matRad_CT.ct'));
+
+
+
 
 % take only voxels inside patient
 V = [cst{:,4}];

@@ -9,6 +9,7 @@ txtmsg_create/*
 *.txt
 beamletPHSPfile*/
 *.dos
+<<<<<<< HEAD
 *.asv
 dvh_1beamEgs.mat
 doseDiffDist.mat
@@ -29,3 +30,6 @@ dvh_pencilbeam_w_egs.mat
 dvh_pencilbeam_w_egs_dosegridEgs.mat
 resultGUI_pencilbeam_w_egs.mat
 resultGUI_pencilbeam_w_pencilbeam.mat
+=======
+*.asv
+>>>>>>> e67257355027c064767fa52728cfcf7ebefb7197
