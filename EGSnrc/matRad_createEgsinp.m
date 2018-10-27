@@ -83,11 +83,7 @@ egsinpPath = 'EGSnrc/egsinpFiles';
             dosxyzPhi = atan2d( -cosd(thetaG),cosd(thetaT)*sind(thetaG) );
             
             
-<<<<<<< HEAD
             dosxyzPhiCol = thetaC - 90 + atan2d( (-sind(thetaT)*cosd(thetaG)),(cosd(thetaT)));
-=======
-            dosxyzPhiCol = 0; %thetaC- 90 + radtodeg(atan( (-sin(thetaT)*cos(thetaG))/(cos(thetaT))));
->>>>>>> e67257355027c064767fa52728cfcf7ebefb7197
 
 
             %isocentre in matRad CT phantom coordinate system-> don't need to transform
