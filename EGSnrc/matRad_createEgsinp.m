@@ -1,158 +1,109 @@
 function matRad_createEgsinp(stf, pln, phantomName, filebase, whichPhspBeamlet,n,m)
-%like createVmcInput except for making .egsinp files
-%function matRad_createEgsinp(n,i,filebase)
-%where n is beam number and i is beamlet number
-%make it a function later when integrated into calcPhotonDoseEgs
 
-%transform xyz coords using this matrix:
-% T = [(cos(thetaT)*cos(thetaG)*sin(thetaC)-sin(thetaT)*cos(thetaC)) (cos(thetaT)*cos(thetaG)*sin(thetaC)+sin(thetaT)*cos(thetaC)) (cos(thetaT)*sin(thetaG));
-%     sin(thetaG)*sin(thetaC) sin(thetaG)*cos(thetaC) -cos(thetaG);...
-%     (-sin(thetaT)*cos(thetaG)*sin(thetaC) - cos(thetaT)*cos(thetaC)) (-sin(thetaT)*cos(thetaG)*sin(thetaC) + cos(thetaT)*cos(thetaC)) (-sin(thetaT)*sin(thetaG))];
-
-
-%first make matrix that tells which beamlets (numbered according to the
-%phsp files) are used in a given beam (is binary; 1 = used, 0 = not used):
-
-% xmin = -45; %these are in mm
-% xmax = 45;
-% ymin = -45;
-% ymax = 45;
-% n = 1;
-% allBeamlets = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1),2);
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % 
-% for x = xmin:5:xmax
-%     for y = ymin:5:ymax
-%         allBeamlets(n,:) = [x y];
-%         n = n + 1;
-%     end
-% end
+% like createVmcInput except for making .egsinp files
+% these files are necessary to run DOSXYZnrc. One file per beamlet, so they
+% have info on beamlet location, associated phase space file, the phantom
+% the dose is being calculated in, and some run parameters.
 % 
-% whichBeamlets = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1)  ,length(stf));  %beamlets included (index in a given row) for each beam (columns)
-% for i = 1:length(stf)
-%     for j = 1:stf(i).numOfRays
-%         indexOfPhsp = find( (allBeamlets(:,1) == stf(i).ray(j).rayPos_bev(1)) & (allBeamlets(:,2) == stf(i).ray(j).rayPos_bev(3)) );    %find index in reference vector that corresponds to this beamlet
-%         whichBeamlets(indexOfPhsp,i) = 1;
-%     end
-% end
+% stf:                  matRad stf struct
+% pln:                  matRad pln struct
+% phantomName:          name of the CT phantom .egsphant file used
+% filebase:             the name of the files according to the convention:
+%                       filebaseBeamIBeamletJ.egsinp. This filebase is used for
+%                       all the files specific to a given run of matRad with
+%                       EGSnrc.
+% whichPhspBeamlet:     which phase space file (specified by a number) is
+%                       connected to this beamlet (phsp files are numbered
+%                       sequentially; these numbers don't correspond to
+%                       beamlet numbers in the stf file)
+% n:                    the beam number of the egsinp file being generated
+% m:                    the beamlet number of the egsinp file being generated
+% 
+% NOTE: most settings copied straight from a DOSXYZ input file; only a few
+% paramters are changed - those that aren't just direct text
+% 
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
-%okay now make the phasespace files by looping over the beams and beamlets:
-
-filebase = 'inputs';
 phspfilebase = "dividedPhsp36M";
 egsinpPath = 'EGSnrc/egsinpFiles';
 
-%password = ;
+rec2 = 0;
 
-%loop over beams
-% for n = 1:length(stf)
-%     
-%     m = 1;  %used to track which beamlet it is as numbered by stf struct
-%     
-%     %loop over beamlets (as numbered by phsp files)
-%     for i = 1:length(whichBeamlets) %so it loops over ALL beamlets, not just those in the beam
-        %so bc loops over all, I'll just make the egsinp file if the
-        %relevant entry in the whichBeamlets matrix is 1. Else I keep going
-        rec2 = 0;
-        
-        %rn the c script assumes file names are like:
-        %filebaseBeamnBeamleti with n = beam number and i = beamlet number
-        %here, the beamlet number is not the same beamlet number as that
-        %in the beamletPhsp file names. Rather it is numbered as in the stf
-        %struct
-        
-        %if(whichBeamlets(i,n) == 1)
-            %phantomName = "matRad_CT.egsphant"; % = strcat(ct.dicomInfo.PatientName.GivenName,ct.dicomInfo.PatientName.MiddleName,ct.dicomInfo.PatientName.FamilyName,"_CT",".egsphant");
-            %first one is to number beamlets to match phsp file numbers
-            %second one is to number them according to the place in the stf struct
-            %thisegsinpfile = strcat(filebase, 'Beam',num2str(n),'Beamlet',num2str(i), '.egsinp')
-            thisegsinpfile = strcat(filebase, 'Beam',num2str(n),'Beamlet',num2str(m), '.egsinp');
-            sourcephspfile = strcat(phspfilebase,num2str(whichPhspBeamlet), '.egsphsp1');
+thisegsinpfile = strcat(filebase, 'Beam',num2str(n),'Beamlet',num2str(m), '.egsinp');
+sourcephspfile = strcat(phspfilebase,num2str(whichPhspBeamlet), '.egsphsp1');
 
-            %The angles in the matRad (DICOM) coordinate system:
-            thetaC = 0; %madRad collimator angle
-            thetaG = stf(n).gantryAngle;
-            thetaT = stf(n).couchAngle;
+%The angles in the matRad (DICOM) coordinate system:
+thetaC = 0; %madRad collimator angle
+thetaG = stf(n).gantryAngle;
+thetaT = stf(n).couchAngle;
 
-            dsource = 50;   %distance in cm
+dsource = 50;   %distance in cm
 
-            %angles in dosxyznrc coordinate system:
-            %from: Lixin Zhan, Runqing Jiang and Ernest K Osei, "Beam coordinate transformations from DICOM to DOSXYZnrc"
-            %(the commented out transformation matrix T is from this too)
-            dosxyzTheta = acosd(-sind(thetaT)*sind(thetaG));            
-            dosxyzPhi = atan2d( -cosd(thetaG),cosd(thetaT)*sind(thetaG) );
-            
-            
-            dosxyzPhiCol = thetaC - 90 + atan2d( (-sind(thetaT)*cosd(thetaG)),(cosd(thetaT)));
+%angles in dosxyznrc coordinate system:
+%from: Lixin Zhan, Runqing Jiang and Ernest K Osei, "Beam coordinate transformations from DICOM to DOSXYZnrc"
+dosxyzTheta = acosd(-sind(thetaT)*sind(thetaG));            
+dosxyzPhi = atan2d( -cosd(thetaG),cosd(thetaT)*sind(thetaG) );
+dosxyzPhiCol = thetaC - 90 + atan2d( (-sind(thetaT)*cosd(thetaG)),(cosd(thetaT)));
 
+%isocentre in matRad CT phantom coordinate system-> don't need to transform
+%divide by 10 to convert from mm to cm
+isocentre = [pln.propStf.isoCenter(n,1) pln.propStf.isoCenter(n,2) pln.propStf.isoCenter(n,3) ]/10;
 
-            %isocentre in matRad CT phantom coordinate system-> don't need to transform
-            %divide by 10 to convert from mm to cm
-            
-            isocentre = [pln.propStf.isoCenter(n,1) pln.propStf.isoCenter(n,2) pln.propStf.isoCenter(n,3) ]/10;
+%valuess from 4th line/record in egsinp file:
+%ECUTIN,PCUTIN: Electron (total) and photon global cutoff energies in MeV.
+%SMAX: Dummy input
+rec4 = [0.7 0.01 0];   
 
-            %valuess from 4th line/record in egsinp file:
-            %ECUTIN,PCUTIN: Electron (total) and photon global cutoff energies in MeV.
-            % SMAX: Dummy input
-            rec4 = [0.7 0.01 0];   
+%zeroairdose,doseprint,MAX20: (binary 1/0):
+rec5 = [0 0 0];
 
-            %zeroairdose,doseprint,MAX20: (binary 1/0):
-            rec5 = [0 0 0];
+nhistories = 10000000;
 
-            file = fopen(fullfile(egsinpPath, thisegsinpfile),'w');
+%open the file and get writing:
+file = fopen(fullfile(egsinpPath, thisegsinpfile),'w');
 
-            fprintf(file,"                                                                                 #!GUI1.0\n");
-            fprintf(file, "%d\n",rec2);
-            fprintf(file,"/data/data060/shussain/egsnrc/dosxyznrc/%s\n",phantomName);
-            fprintf(file,"%f, %f, %f\n", rec4);
-            fprintf(file,"%d, %d, %d\n", rec5);
-            fprintf(file,"2, 2, %f, %f, %f, %f, %f, %f, %f, 0, 0, 0, 0, 0\n",isocentre(1),isocentre(2),isocentre(3),dosxyzTheta,dosxyzPhi,dsource,dosxyzPhiCol);
-            fprintf(file,"2, 0, 0, 0, 0, 0, 0, 0\n");
-            fprintf(file,"/data/data060/shussain/egsnrc/dosxyznrc/%s\n",sourcephspfile);
+fprintf(file,"                                                                                 #!GUI1.0\n");
+fprintf(file, "%d\n",rec2);
+fprintf(file,"/data/data060/shussain/egsnrc/dosxyznrc/%s\n",phantomName);
+fprintf(file,"%f, %f, %f\n", rec4);
+fprintf(file,"%d, %d, %d\n", rec5);
+fprintf(file,"2, 2, %f, %f, %f, %f, %f, %f, %f, 0, 0, 0, 0, 0\n",isocentre(1),isocentre(2),isocentre(3),dosxyzTheta,dosxyzPhi,dsource,dosxyzPhiCol);
+fprintf(file,"2, 0, 0, 0, 0, 0, 0, 0\n");
+fprintf(file,"/data/data060/shussain/egsnrc/dosxyznrc/%s\n",sourcephspfile);
 
-           
-            nhistories = 10000000;
-            
-            %print record 13:
-            fprintf(file,"%d, 0, 99, 33, 97, 100.0, 0, 0, 0, 0, , -1, 0, 0, 1, 0, 0\n",nhistories);
-            
-            mctparameter = strcat('#########################\n',...
-                [':Start MC Transport Parameter:\n\n'],...
-                ['Global ECUT= 0.7\n'],...
-                ['Global PCUT= 0.01\n'],...
-                ['Global SMAX= 5\n'],...
-                ['ESTEPE= 0.25\n'],...
-                ['XIMAX= 0.5\n'],...
-                ['Boundary crossing algorithm= PRESTA-I\n'],...
-                ['Skin depth for BCA= 0\n'],...
-                ['Electron-step algorithm= PRESTA-II\n'],...
-                ['Spin effects= On\n'],...
-                ['Brems angular sampling= Simple\n'],...
-                ['Brems cross sections= BH\n'],...
-                ['Bound Compton scattering= Off\n'],...
-                ['Compton cross sections= default\n'],...
-                ['Pair angular sampling= Simple\n'],...
-                ['Pair cross sections= BH\n'],...
-                ['Photoelectron angular sampling= Off\n'],...
-                ['Rayleigh scattering= Off\n'],...
-                ['Atomic relaxations= Off\n'],...
-                ['Electron impact ionization= Off\n'],...
-                ['Photon cross sections= xcom\n'],...
-                ['Photon cross-sections output= Off\n\n'],...
-                [':Stop MC Transport Parameter:\n'],...
-                ['#########################\n']);
+%print record 13:
+fprintf(file,"%d, 0, 99, 33, 97, 100.0, 0, 0, 0, 0, , -1, 0, 0, 1, 0, 0\n",nhistories);
 
-            fprintf(file,mctparameter);
+mctparameter = strcat('#########################\n',...
+    [':Start MC Transport Parameter:\n\n'],...
+    ['Global ECUT= 0.7\n'],...
+    ['Global PCUT= 0.01\n'],...
+    ['Global SMAX= 5\n'],...
+    ['ESTEPE= 0.25\n'],...
+    ['XIMAX= 0.5\n'],...
+    ['Boundary crossing algorithm= PRESTA-I\n'],...
+    ['Skin depth for BCA= 0\n'],...
+    ['Electron-step algorithm= PRESTA-II\n'],...
+    ['Spin effects= On\n'],...
+    ['Brems angular sampling= Simple\n'],...
+    ['Brems cross sections= BH\n'],...
+    ['Bound Compton scattering= Off\n'],...
+    ['Compton cross sections= default\n'],...
+    ['Pair angular sampling= Simple\n'],...
+    ['Pair cross sections= BH\n'],...
+    ['Photoelectron angular sampling= Off\n'],...
+    ['Rayleigh scattering= Off\n'],...
+    ['Atomic relaxations= Off\n'],...
+    ['Electron impact ionization= Off\n'],...
+    ['Photon cross sections= xcom\n'],...
+    ['Photon cross-sections output= Off\n\n'],...
+    [':Stop MC Transport Parameter:\n'],...
+    ['#########################\n']);
 
-            fclose(file);
-%             try
-%                 scp_simple_put('tyr.physics.carleton.ca','shussain',password,thisegsinpfile,'/data/data060/shussain/egsnrc/dosxyznrc/','/Users/sakinahussain/Documents/GitHub/matRad/EGSnrc/egsinpFiles',thisegsinpfile); 
-%             catch
-%                 fprintf("Didn't transfer the file %s to the cluster: encountered a problem :/ \n");
-%             end
-%             m = m + 1;
-%         end
-%     end
-        %end
+fprintf(file,mctparameter);
+
+fclose(file);
 
 end

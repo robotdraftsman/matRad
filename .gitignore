@@ -1,8 +1,10 @@
 *.egs*
+vmc_sakina/*
 vmc++/bin/*
 vmc++/data/*
 vmc++/lib/*
 vmc++/run/*
+vmc++
 ssh2*/*
 ganymed*
 txtmsg_create/*
@@ -30,6 +32,7 @@ dvh_pencilbeam_w_egs.mat
 dvh_pencilbeam_w_egs_dosegridEgs.mat
 resultGUI_pencilbeam_w_egs.mat
 resultGUI_pencilbeam_w_pencilbeam.mat
+*.mat
 =======
 *.asv
 >>>>>>> e67257355027c064767fa52728cfcf7ebefb7197

@@ -1,6 +1,29 @@
-%read in a binary file (the phase space file)
 function [m m2 charges lastParticle numParticlesLeft] = readBinaryPHSP_optimized(phspFile,readThisMuch,numParticlesToSkip)
-%clear;
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 
+% read in a binary file (the phase space file)
+% 
+% Output arguments:
+% 
+% m:                    Header information from the phase space file
+% m2:                   Particle data from phsp file (in one long array)
+% charges:              The charges of these particles
+% lastParticle:         Last particle read in, if only part of file read
+% numParticlesLeft:     Particles yet to be read in
+% 
+% Note on the last two: these are not used currently, but are here so that,
+% if the phsp file is too big to be read in at once, it can go a bit at a
+% time. I didn't finish developing this methodology
+% 
+% Input arguments:
+% 
+% phspFile:             The phase space file's name
+% readThisMuch:         The number of particles to read in (see note above)
+% numParticlesToSkip:   If reading in only part of the file, and part has
+%                       already been read in, skip forward by this many particles
+% 
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % read the header:
  m = memmapfile(phspFile,...
@@ -16,7 +39,7 @@ function [m m2 charges lastParticle numParticlesLeft] = readBinaryPHSP_optimized
 example_txtmsg('Large PHSP file read-in:','Read the header. Now check that user inputs make sense...');
 
 readOffset = 28 + numParticlesToSkip*28;
-%when running this 1M particles at a time:
+% if running this 1M particles at a time:
 % numParticlesToSkip = (i-1)*1000000, with i = iteration we're on in the
 % loop we're dealing with in this other file we're calling this from
 

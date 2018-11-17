@@ -17,43 +17,23 @@ char getInfo(const char *prompt);
 char command[600];
 
 int main(int argc, char** argv) {
-  //get the name of the files you want to run dosxyz on:
-  /*printf("Gimme the name base of your files (no numbers or extensions): ");
-  char *filebase = NULL;
-  int read;
-  unsigned int len;
-  read = getline(&filebase, &len, stdin);
-  if (-1 != read)
-      puts(filebase);
-  else
-      printf("No line read...\n");
-
-  //so this is our file name base:
-  filebase[strlen(filebase)-1] = 0;
-  printf("%s\n",filebase); */
 
   /* note: this assumes that the filename is formatted like:
   filebaseBeamnBeamleti with n = beam number and i = beamlet number.
   i isn't beamlet numbered in beam, but the number that corresponds to the beamlet phsp file 
   */
-
-  //loop over beams and beamlets:
   
   //so when calling fn, go like:
   // ./autoDos filebase totnumBeams startingBeam startingBeamlet
   // int numBeams = argv[2];
-  int numBeamlets = 361; //fixed for now (afaik this is the overall max?)
-  int maxSubmit = 200;  //maximum number of jobs to submit to the cluster at a time
+  int numBeamlets = 361; //this depends on bixel resolution and max/min beamlet locations. The maximum number of beamlets you can have for any given beam
+  int maxSubmit = 100;  //maximum number of jobs to submit to the cluster at a time
   int numSubitted = 0; 
-  /*int nat = 3;
-  int * n = nat; //beam we start at
-  int iat = 4;
-  int * i = iat; //beamlet within the beam we start at*/
-
-  //argv[0] is filebase, 1 is n, and 2 is i
 
   if(argc != 5) {
-    printf("You haven't given me the right number of  arguments. When running me, write: ./autoDos filebase totNumOfBeams startingBeamNumber startingBeamletNumber\n");
+    //note: filebase = the name of the file without beam/beamlet numbers, e.g. for 'inputsBeam3Beamlet5.egsinp' the base is 'inputs'
+    //totNumOfBeams = all the beams used in the whole simulation
+      printf("You haven't given me the right number of  arguments. When running me, write: ./autoDos filebase totNumOfBeams startingBeamNumber startingBeamletNumber\n");
     return 0;
   }
 
@@ -63,69 +43,24 @@ int main(int argc, char** argv) {
   }
 
   printf("total number of beams given = %d\n",atoi(argv[2]));
-  printf("total number of beamlets = %d\n",numBeamlets);
+  printf("maximum number of beamlets per beam = %d\n",numBeamlets);
   printf("starting beam = %d\n",atoi(argv[3]));
   printf("starting beamlet = %d\n",atoi(argv[4]));
   
-  
-  //so now to make it such that you type in starting beam number and starting beamlet number before running it
-  //if no numbers given, then ask for them in here
-  //if wrong number of arguments, freak out and yell at the user
-  //etc. etc.
-  
-  //cases: if too many arguments, if two few (but not 0), if 0.
-  //If first two, complain/quit. If 0 prompt for starting point. If none of those, we have 2 arguments -> examine them.
-  
-  //no wait: if 3 args, first is filebase, and other two are starting point. If 2, just starting point.
-  
-  /* !!! wasting too much time here so I'll just run it with all 3 inputs going when you start it
-  printf("start the if statements\n");
-  if(argc == 4) {
-    sprintf(filebase,argv[0]);
-    n = atoi(argv[1]);
-    i = atoi(argv[2]);
-  } else if(argc == 3) {
-    printf("doing NIII\n");
-    n = atoi(argv[0]);
-    i = atoi(argv[1]);
-    
-    filebase = getInfo("gimme the name of the file base: ");
-    
-  } else if(argc == 1) {
-    filebase = getInfo("gimme the name of the file base: ");
-    printf("ok %d\n",atoi(getInfo("Now give me the beam number to start from: ")));  //and after this works check that it's in the right range. Same for i
-    i = atoi(getInfo("And may I please have the beamlet number from which to begin? "));
-    printf("n: %d; i: %d\n",n,i);
-  } else {
-    printf("You have the wrong number of arguments. Options:\n 3: file base, starting beam, starting beamlet\n 2: starting beam, starting beamlet\n 0: provide all information during runtime");
-  }
-*/
-  
-  /*
-  Here we gotta get the person to tell us what number beam (n) and beamlet (i) to start on
-  And also make sure that 1 <= n <= 5 and 1 <= i <=361
-  */  
-  
-  /*char * argv[];
-  printf("Which beam do you want to start on (0 <= n <= 5): ");
-  read = argv[];*/
-  
-
-  
-  /* so after it submits 200 jobs to the cluster it'll stop and tell you what beam
+  /* so after it submits whatever specified number of jobs to the cluster it'll stop and tell you what beam
   and beamlet number it just submitted, and give you the next beamlet number (if it's
   not on beamlet 361; if it is, it'll give you the next beam number, and beamlet number 1)
   so that when these jobs are done, you can go and run it again but starting from that number
-  so that it'll submit the next 200. Keep doing that until you've done them all
+  so that it'll submit the next whatever number. Keep doing that until you've done them all
   */
   
-  int n, i;
+ int n, i;
   int numSubmitted = 0;
   
-  
+ int iStart = atoi(argv[4]);
   
   for(n = atoi(argv[3]); n <= atoi(argv[2]); n++) {
-    for(i = atoi(argv[4]); i <= numBeamlets; i++) {
+    for(i = iStart; i <= numBeamlets; i++) {
       char filename[256];
       sprintf(filename,"%sBeam%dBeamlet%d.egsinp",argv[1],n,i);
       // printf("%s\n",filename);
@@ -156,6 +91,7 @@ int main(int argc, char** argv) {
         printf("Looks like we've reached the end of all the beams and beamlets!\n");
       }
     }
+    iStart = 1;
   }
   
   

@@ -19,19 +19,20 @@ clear
 close all
 clc
 
-addpath('\Users\sakinahussain\Documents\GitHub\matRad\ssh2_v2_m1_r6');
-addpath('\Users\sakinahussain\Documents\GitHub\matRad\txtmsg_create');
-addpath('\Users\sakinahussain\Documents\GitHub\matRad\EGSnrc');
-
 % load patient data, i.e. ct, voi, cst
-matfile = 'TG119';
 
 %load HEAD_AND_NECK
-load TG119.mat
+%load TG119.mat
 %load CALIBRATION_PHANTOM_TOH.mat
 %load PROSTATE.mat
 %load LIVER.mat
 %load BOXPHANTOM.mat
+
+% name the plan according to the patient data used:
+planName = 'TG119';
+load(strcat(planName,'.mat'));
+%uncomment the following if want to run with the files I generated:
+planName = 'inputs';
 
 % meta information for treatment plan
 
@@ -74,7 +75,7 @@ stf = matRad_generateStf(ct,cst,pln);
 if strcmp(pln.radiationMode,'photons')
     %dij = matRad_calcPhotonDose(ct,stf,pln,cst);
     %dij = matRad_calcPhotonDoseVmc(ct,stf,pln,cst);
-    dij = matRad_calcPhotonDoseEgs(ct,stf,pln,cst);
+    dij = matRad_calcPhotonDoseEgs(ct,stf,pln,cst,planName);
 elseif strcmp(pln.radiationMode,'protons') || strcmp(pln.radiationMode,'carbon')
     dij = matRad_calcParticleDose(ct,stf,pln,cst);
 end

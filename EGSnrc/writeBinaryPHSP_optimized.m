@@ -1,25 +1,33 @@
-%write phase space file for each beamlet
 function headers = writeBinaryPHSP_optimized(phspData,charges,header)
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 
+% write phase space file for each bixel in a hypothetical beam that
+% contains all possible bixels/beamlets
+% 
+% phspData:     An array containing everything read in from a phase space
+%               file get it in the right format from readBinaryPHSP_optimized.m
+% charges:      An arry of the charge of every particle in that phsp file
+% header:       The header of the large phsp file
+% 
+% 
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%total number of particles through this beamlet:
-%beamlet boundaries in x and y are (stf.ray.rayPos_bev(x or y) +/- 2.5)/2
-%-> in mm. divide by 20 instead for cm. And y mentioned here is actually z
-%in stf
-
-%test out a beamlet in first beam:
-%gets all the points in a given beamlet:
 phspPath = 'EGSnrc/beamletPHSPfiles';
 filebase = 'dividedPhsp36M';
 
-xmin = -45; %these are in mm
+bixelSize = 5; %in mm
+
+%generate the beamlets. If you have a bigger beam with more bixels or
+%bigger bixels, you might want to change this...
+xmin = -45; %these are in mm. Get these from the matRad steering file
 xmax = 45;
 ymin = -45;
 ymax = 45;
 
-allBeamlets = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1),2);
+allBeamlets = zeros(((xmax-xmin)/bixelSize + 1 )*( (ymax-ymin)/bixelSize + 1),2);
 n = 1;
-for x = xmin:5:xmax
-    for y = ymin:5:ymax
+for x = xmin:bixelSize:xmax
+    for y = ymin:bixelSize:ymax
         allBeamlets(n,:) = [x y];
         n = n + 1;
     end
@@ -27,31 +35,24 @@ end
 
 "arranged the beamlets...\n"
 
-%now loop over these and cut up the phsp file
-%scatter(allTheStuff(3:7:length(phspData.Data.allTheStuff))*10,phspData.Data.allTheStuff(4:7:length(phspData.Data.allTheStuff))*10)
-%hold on
+%now loop over the above beamlets and cut up the phsp file:
 
 %one row for each beamlet. Col1 = numParticles, col2 = numPhotons:
-headerNumbers = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1),2);
+headerNumbers = zeros(((xmax-xmin)/bixelSize + 1 )*( (ymax-ymin)/bixelSize + 1),2);
 
 %one row for each beamlet. col1 = maxEnergy, col2 = min elec energy in beamlet:
 %set all entries to inf so that don't have to worry about 0s messing up min
 %energy values -> any particle's energy is less. So on first iteration it
-%becomes a finite number: the first particle in that beamlet's energy
-maxEnergy = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1),1);
-minEnergy = inf(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1),1);
+%becomes a finite number: the first particle in that beamlet's energy.
+maxEnergy = zeros(((xmax-xmin)/bixelSize + 1 )*( (ymax-ymin)/bixelSize + 1),1);
+minEnergy = inf(((xmax-xmin)/bixelSize + 1 )*( (ymax-ymin)/bixelSize + 1),1);
 
-%new structure: loop through phspData and check which beamlet each particle
-%is in. Can either accumulate stuff to write to each file or just write
-%directly to each file. In latter case, would have an array of fids and
-%just access the relevant one based on the x and y of the particle we're
-%looking at
 
 %create array of fids for all the beamlets:
-example_txtmsg('PHSP file dividing process:','opening the smol beamlet phsp files...');
+example_txtmsg('PHSP file dividing process:','opening the small beamlet phsp files...');
 filenum = 1;
-for x = xmin:5:xmax
-    for y = ymin:5:ymax
+for x = xmin:bixelSize:xmax
+    for y = ymin:bixelSize:ymax
         phspFile = fullfile(phspPath, strcat(filebase,num2str(filenum),'.egsphsp1'));
         fids(filenum) = fopen(phspFile,'w+');
         filenum = filenum + 1; 
@@ -64,10 +65,15 @@ for i = 1:(filenum-1)
 end
 
 "opened the files, made placeholder headers..."
-tic;
-%loop over all the particles in the array:
+
+
+
+%loop over all the particles in the big phase space file array and assign each particle to a beamlet
+
 example_txtmsg('PHSP file dividing process:','looping over the particles in the big file: populating beamlets...');
-notifyIncrement = 3760000;
+notifyIncrement = 3760000;  %roughly 10% of the particles in the phsp I was using; change if you want
+
+tic;
 for i = 1:7:length(phspData.Data.allTheStuff)
     
     %see which beamlet it's within (boundaries included):
@@ -106,10 +112,13 @@ for i = 1:7:length(phspData.Data.allTheStuff)
     end
 end
 toc;
+
 example_txtmsg('PHSP file dividing process:','Done looping over the particles. :) now making the headers...');
 "finished looping over all those many particles!"
 
 clear allBeamlets;
+
+
 tic;
 %go back through the files and write their headers:
 for(i = 1:length(fids))
@@ -137,7 +146,6 @@ headers(:,4) = minEnergy(:);
 
 fclose all;
 clear fids;
-
 
 
 % [communist geologists]

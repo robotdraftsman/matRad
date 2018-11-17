@@ -1,4 +1,6 @@
 %read in a binary file (the phase space file)
+%EXCEPT DON'T USE THIS, use readBinaryPHSP_optimized.m instead! This one is
+%less efficient and somewhat wrong. So get out!
 
 %clear;
 

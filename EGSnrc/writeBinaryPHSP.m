@@ -1,4 +1,6 @@
 %write phase space file for each beamlet
+%BUT use writeBinaryPHSP_optimized.m instead! This is one is less efficient
+%and less accurate! Leave, I say!
 
 %% load stuff so I don't have to run matRad every time:
 

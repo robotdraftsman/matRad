@@ -1,4 +1,4 @@
-function dij = matRad_calcPhotonDoseVmc(ct,stf,pln,cst,nCasePerBixel,calcDoseDirect)
+function dij = matRad_calcPhotonDoseEgs(ct,stf,pln,cst,planName,nCasePerBixel,calcDoseDirect)
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % matRad vmc++ photon dose calculation wrapper
 % 
@@ -10,6 +10,7 @@ function dij = matRad_calcPhotonDoseVmc(ct,stf,pln,cst,nCasePerBixel,calcDoseDir
 %   stf:                        matRad steering information struct
 %   pln:                        matRad plan meta information struct
 %   cst:                        matRad cst struct
+%   planName:                   matRad plan name
 %   nCasePerBixel:              number of photons simulated per bixel
 %   calcDoseDirect:             boolian switch to bypass dose influence matrix
 %                               computation and directly calculate dose; only makes
@@ -27,9 +28,11 @@ if ~exist('calcDoseDirect','var')
     calcDoseDirect = false;
 end
 
-%if need to check/move files around on/to/from cluster, put the password:
-%password = 
-
+%if need to check/move files around on/to/from cluster, enter your login information:
+clusterUserName = '';
+password = '';
+address = 'tyr.physics.carleton.ca';
+clusterPath = '/data/data060/shussain/egsnrc/dosxyznrc/';
 
 % set output level. 0 = no vmc specific output. 1 = print to matlab cmd.
 % 2 = open in terminal(s)
@@ -41,11 +44,11 @@ if ~isdeployed % only if _not_ running as standalone
     addpath(fullfile(matRadRootDir,'vmc++'))
 end
 
-checkForFiles = 0;
-
-egsinpbase = 'inputs';
-egsinpPath = '/Users/sakinahussain/Documents/GitHub/matRad/EGSnrc/egsinpFiles';
-dosbase = 'inputs';
+%egsinpbase = 'inputs';
+egsinpbase = planName;
+egsinpPath = 'EGSnrc/egsinpFiles';
+%dosbase = 'inputs';
+dosbase = planName;
 dosPath = 'EGSnrc/EGSdosFiles';
 
 % meta information for dij
@@ -64,7 +67,7 @@ if calcDoseDirect
    numOfBixelsContainer = 1;
 else
     numOfColumnsDij           = dij.totalNumOfBixels;
-   numOfBixelsContainer = 1;%ceil(dij.totalNumOfBixels/10);
+   numOfBixelsContainer = 1;
 end
 
 
@@ -72,11 +75,9 @@ end
 
 
 % set up arrays for book keeping
-dij.bixelNum = NaN*ones(numOfColumnsDij,1);
 dij.rayNum   = NaN*ones(numOfColumnsDij,1);
 dij.beamNum  = NaN*ones(numOfColumnsDij,1);
 
-bixelNum = NaN*ones(dij.totalNumOfBixels,1);
 rayNum   = NaN*ones(dij.totalNumOfBixels,1);
 beamNum  = NaN*ones(dij.totalNumOfBixels,1);
 
@@ -89,7 +90,6 @@ for i = 1:dij.numOfScenarios
     dij.physicalDoseError{i} = spalloc(prod(ct.cubeDim),numOfColumnsDij,1);
 end
 
-%keeping these - check that the absolute calibration factor is good tho
 
 % set relative dose cutoff for storage in dose influence matrix
 relDoseCutoff = 10^(-3);
@@ -101,21 +101,10 @@ relDoseCutoff = 10^(-3);
 % SAD = 1000mm, SCD = 500mm, bixelWidth = 5mm, IC = [240mm,240mm,240mm]
 % fieldsize@IC = 105mm x 105mm, phantomsize = 81 x 81 x 81 = 243mm x 243mm x 243mm
 % rel_Dose_cutoff = 10^(-3), ncase = 500000/bixel
-% absCalibrationFactorVmc = 99.818252282632300;
 
 %the below is: TOHCC calibration (10x10 cm2 field, depth=5cm, SAD = 100cm) 6.495E-17
 absCalibrationFactorEgs = 1/9.4457e-017;
 absCalibrationFactorEgs_err = 1.022147627023901E-002.*absCalibrationFactorEgs;
-
-phantomPath = 'EGSnrc/phantoms';
-phantomName = 'matRad_CT.egsphant';
-
-% export CT cube as ASCII file for EGSnrc
-%also get the x,y,z coordinates of the centre of the ct cube (don't think I
-%need to keep this part though...can't see any later application for it?)
-
-%##############################################
-%ctCubeCentre = matRad_exportCtEgs(ct, fullfile(phantomPath, [phantomName,'.egsphant']));
 
 % get default vmc options
 EgsOptions = matRad_vmcOptions(pln,ct);
@@ -128,37 +117,20 @@ writeCounter                  = 0;
 readCounter                   = 0;
 
 
-
-
-
 % initialize waitbar
 figureWait = waitbar(0,'EGSnrc photon dose influence matrix calculation.. ');
 
 fprintf("matRad: EGSnrc photon dose calculation... ");
 
-
-%check if we have the files:
-%first check for .dos files. If they're present, then great, go straight to
-%dose read-in. Don't even need to generate an egsphant file
-%If not, check for egsphant, egsinp and phsp files on the cluster. If they're there,
-%tell user to run dosxyz on them.
-%If the egsphant file is not there, check here. If here, transfer it to the
-%cluster. If not here, then generate the CT egsphant and transfer it.
-%If the egsip files are not there, check here. If they're here, transfer
-%them to the cluster. If they're not here, then generate them and transfer
-%them to the cluster.
-%If the phsp files aren't there, check here and if here, transfer them. If
-%they're not here either, then be very sad and tell the user to run
-%readANDwriteBinaryPHSP on their desired phsp source.
-
-
-xmin = -45; %these are in mm
+% use this to match input files to phase space files
+xmin = -45; %these are in mm. These are from the stf file
 xmax = 45;
 ymin = -45;
 ymax = 45;
 n = 1;
 allBeamlets = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1),2);
 
+% allBeamlets tracks which bixels are included in each beam
 for x = xmin:5:xmax
     for y = ymin:5:ymax
         allBeamlets(n,:) = [x y];
@@ -166,6 +138,7 @@ for x = xmin:5:xmax
     end
 end
 
+% whichBeamlets which beamlet phsp file belongs to each bixel
 whichBeamlets = zeros(((xmax-xmin)/5 + 1 )*( (ymax-ymin)/5 + 1)  ,length(stf));  %beamlets included (index in a given row) for each beam (columns)
 for i = 1:length(stf)
     for j = 1:stf(i).numOfRays
@@ -175,218 +148,225 @@ for i = 1:length(stf)
 end
 
 
+phantomPath = 'EGSnrc/phantoms';
+phantomName = strcat(planName,'_matRad_CT','.egsphant');
 
-    clusterPath = '/data/data060/shussain/egsnrc/dosxyznrc/';
-    for i = 1:dij.numOfBeams % loop over all beams
-        
-        for j = 1:stf(i).numOfRays % loop over all rays / for photons we only have one bixel per ray!
-            %check if dos exists here. If not, check cluster...
-            dosfile = strcat(dosbase,'Beam',num2str(i),'Beamlet',num2str(j),'.dos');
-            if (exist(fullfile(dosPath,dosfile)) == 0)
-                fprintf("%s ain't here so I'm gonna get it\n", dosfile);
-                %try to get the dos file from the cluster
+runOnCluster = 0;   %if don't need to do anything on cluster (i.e. all the
+%dos or at least 3ddose files exist) then it's 0.
+%But if you need to run DOSXYZnrc on even one thing it's flipped to 1
+
+for i = 1:dij.numOfBeams % loop over all beams
+
+    for j = 1:stf(i).numOfRays % loop over all rays
+        caught3ddose = 0;
+        caughtEgsinp = 0;
+        %check if dos exists here. If not, check cluster...
+        dosfile = strcat(dosbase,'Beam',num2str(i),'Beamlet',num2str(j),'.dos');
+        if (exist(fullfile(dosPath,dosfile),'file') == 0)
+            fprintf("%s ain't here so I'm gonna get it\n", dosfile);
+            %try to get the dos file from the cluster
+            try
+                scp_simple_get(address,clusterUserName,password,dosfile,'EGSnrc/EGSdosFiles',clusterPath);
+            catch
+                fprintf("couldn't get it from the cluster...\n");
+                %if the try gives an error, the file's not there and we
+                %have to go about making it. So we check if the ingredients
+                %to make it are there (the 3ddose or at least the egsinp file).
+                %If 3ddose file is there, tell user to convert it to .dos
+                %format. If it's not there check here for the egsinp file.
+                %If it's not here, make the egsinp file and transfer it.
+                onCluster3ddt{1} = [];
+                file3ddt = strcat(egsinpbase,'Beam',num2str(i),'Beamlet',num2str(j),'.3ddose');
                 try
-                    scp_simple_get('tyr.physics.carleton.ca','shussain',password,dosfile,'/Users/sakinahussain/Documents/GitHub/matRad/EGSnrc/EGSdosFiles','/data/data060/shussain/egsnrc/dosxyznrc/');
+                    onCluster3ddt = ssh2_simple_command(address,clusterUserName,password,['ls ',clusterPath,file3ddt]);
                 catch
-                    fprintf("couldn't get it from the cluster...\n");
-                    %if the try gives an error, the file's not there and we
-                    %have to go about making it. So we check if the ingredients
-                    %to make it are there (the egsinp file). If it's not here,
-                    %make the file and transfer it.
-
+                    fprintf("Could not access cluster to check for 3ddose file. Proceeding as if required resources are not on cluster...\n");
+                    caught3ddose = 1;
+                end
+                if(isempty(onCluster3ddt{1}) || caught3ddose == 1) % if 3ddose file is not on cluster
+                    runOnCluster = 1;
+                    %then we wanna do the egsinp checking/creating:
+                    fromCluster{1} = [];
                     egsinpFile = strcat(egsinpbase,'Beam',num2str(i),'Beamlet',num2str(j),'.egsinp');
-                    fromCluster = ssh2_simple_command('tyr.physics.carleton.ca','shussain',password,['ls ',clusterPath,egsinpFile]);
-                    if (length(fromCluster{1}) == 0)    %if it's empty -> no file on cluster
-                         if (exist(fullfile(egsinpPath,egsinpFile)) == 0) %if file doesn't exist locally, then make it
+                    try
+                        fromCluster = ssh2_simple_command(address,clusterUserName,password,['ls ',clusterPath,egsinpFile]);
+                    catch
+                        fprintf("Could not access cluster to check for egsinp file. Proceeding as if required resources are not on cluster...\n");
+                    end
+                    
+                    if (isempty(fromCluster{1}) || caughtEgsinp == 0)    %if it's empty -> no file on cluster or can't access cluster
+                         if (exist(fullfile(egsinpPath,egsinpFile),'file') == 0) %if file doesn't exist locally, then make it
                             %make the egsinp file for this beamlet:
-
                             matRad_createEgsinp(stf,pln,phantomName,egsinpFile,whichBeamlets(j,i),i,j);
-
                          end
                         %scp it to the cluster:
                          try
                              fprintf("putting egsip file for Beam %d beamlet %d onto cluster...\n",i,j);
-                             scp_simple_put('tyr.physics.carleton.ca','shussain',password,egsinpFile,'/data/data060/shussain/egsnrc/dosxyznrc/','/Users/sakinahussain/Documents/GitHub/matRad/EGSnrc/egsinpFiles',thisegsinpfile); 
+                             scp_simple_put(address,clusterUserName,password,egsinpFile,clusterPath,'EGSnrc/egsinpFiles',egsinpFile); 
                          catch
                              fprintf("Didn't transfer the file %s to the cluster: encountered a problem :| \n",egsinpFile);
+                             fprintf("Please move the file to the cluster manually.\n");
                          end
                     end
-                    fprintf("Please run dosxyznrc on %s on the cluster, convert it to a .dos file, and bring it back to me (in /matRad/EGSdosFiles/).\n",egsinpFile);
-                end
+                    fprintf("Please run dosxyznrc on %s on the cluster, convert resulting .3ddose file to a .dos file, and bring it back to me (in /matRad/EGSdosFiles/).\n",egsinpFile);
+                    
+                else %if it IS on the cluster:
+                    fprintf("please convert %s to .dos format using 3ddose_to_dos.c or automate_3ddose_to_dos.c.\n",file3ddt);
+                end                
             end
         end
     end
+end
+
+
+%this makes the CT phantom for DOSXYZnrc, if it's necessary to run
+%DOSXYZnrc on the cluster and if the phantom doesn't already exist:
+%NOTE: this creates a phantom with relative electron densities, not
+%physical densities. The code to do physical densities can be uncommented
+%in matRad_exportCtEgs.m to convert RED to physical density
+
+caughtEgsphant = 0;
+%if the user has to run DOSXYZnrc on the cluster, they're going to need the phantom:
+if(runOnCluster == 1)
+    %check on cluster for phantom.
+    phantomOnCluster{1} = [];
+    try
+        phantomOnCluster = ssh2_simple_command(address,clusterUserName,password,['ls ',clusterPath,phantomName]);
+    catch
+        fprintf("Could not access cluster to check for egsphant file. Proceeding as if required resources are not on cluster...\n");
+        caughtEgsphant = 1;
+    end
+    if (isempty(phantomOnCluster{1}) || caughtEgsphant == 0)    %if it's empty -> no file on cluster or can't access cluster
+        %If not there check here and transfer to cluster if it is here. 
+        if (exist(fullfile(phantomPath,phantomName),'file') == 0) %if file doesn't exist locally, then make it:
+            % export CT cube as ASCII file for EGSnrc
+            matRad_exportCtEgs(ct, fullfile(phantomPath, phantomName));
+        end
+        %scp it to the cluster:
+        try
+            fprintf("Putting the phantom onto cluster...\n");
+            scp_simple_put(address,clusterUserName,password,egsinpFile,clusterPath,'EGSnrc/egsinpFiles',phantomName); 
+        catch
+            fprintf("Didn't transfer the file %s to the cluster: encountered a problem :| \n",phantomName);
+            fprintf("Please move the file to the cluster manually.\n");
+        end
+    end
+    fprintf("Please run dosxyznrc on the cluster using this phantom and the given .egsinp files.\n");
+end
+
+
 
 %%%%% reading in the .dos file from dosxyz into dij matrix:
+%AKA the REAL MEAT of this code, everything else is mere prep
 
 for i = 1:dij.numOfBeams % loop over all beams
-   tic;
    % remember beam and bixel number
     if calcDoseDirect
         dij.beamNum(i)    = i;
         dij.rayNum(i)     = i;
-        dij.bixelNum(i)   = i;
     end
         
     for j = 1:stf(i).numOfRays % loop over all rays / for photons we only have one bixel per ray!
         
-        %readCounter = readCounter + 1;
-        
-        %can do the checking in here instead? But rn can at least test the
-        %checker up there...
-        
         writeCounter = writeCounter + 1;
-        
-        %flag: donotneed?
-        % create different seeds for every bixel
-        %EgsOptions.McControl.rngSeeds = [randi(30000),randi(30000)];
 
         % remember beam and bixel number
         if ~calcDoseDirect
            dij.beamNum(writeCounter)  = i;
            dij.rayNum(writeCounter)   = j;
-           dij.bixelNum(writeCounter) = j;
         end
         beamNum(writeCounter)  = i;
         rayNum(writeCounter)   = j;
-        bixelNum(writeCounter) = j;
         
-        % set ray specific vmc++ parameters
-        % a) change coordinate system (Isocenter cs-> physical cs) and units mm -> cm
-        rayCorner1 = (stf(i).ray(j).rayCorners_SCD(1,:) + stf(i).isoCenter)/10;              
-        rayCorner2 = (stf(i).ray(j).rayCorners_SCD(2,:) + stf(i).isoCenter)/10;
-        rayCorner3 = (stf(i).ray(j).rayCorners_SCD(3,:) + stf(i).isoCenter)/10; %vmc needs only three corners (counter-clockwise)
+        %%%%%%%%%%%%%%%%%%%% this is important info from the VMC things:
+        % import calculated dose
+            readCounter = readCounter + 1;
+
+            % Display progress
+            if verbose == 0
+                matRad_progress(readCounter,dij.totalNumOfBixels);
+            end
+
+            % update waitbar
+            waitbar(writeCounter/dij.totalNumOfBixels);
+            
+            %read in the dose and its error from the .dos file
+            [bixelDose,bixelDoseError] = matRad_readDoseVmc(fullfile(dosPath, [dosbase,'Beam',num2str(i),'Beamlet',num2str(j),'.dos']),EgsOptions);
+
+            if ~calcDoseDirect
+                % if not calculating dose directly, sample dose
+                % so we implement importance sampling and compute associated errors
+
+                % determine cutoff
+                doseCutoff          = relDoseCutoff*max(bixelDose);
+
+                % determine which voxels to sample
+                indSample = bixelDose < doseCutoff & bixelDose ~= 0;
+                r = rand(nnz(indSample),1);
+
+                % sample them
+                thresRand = bixelDose(indSample)./doseCutoff;
+                indKeepSampled = r < thresRand;
+                indKeep = indSample;
+                indKeep(indKeep) = indKeepSampled;
+
+                clear indKeepSampled;
+                bixelDose(indKeep) = doseCutoff;
+                bixelDose(indSample & ~indKeep) = 0;
+                clear indKeep;
+                clear indSample;
+
+                % coefficients and terms for the error
+                erfArg = (doseCutoff-bixelDose)./(bixelDoseError.*sqrt(2));
+                %can uncomment the following, then comment out the
+                %bixelDoseError computation. Just rewrote it so wouldn't
+                %have all these big matrices hanging around
                 
-        beamSource = (stf(i).sourcePoint + stf(i).isoCenter)/10;
-        
-        % b) swap x and y (CT-standard = [y,x,z])
-        rayCorner1 = rayCorner1([2,1,3]);              
-        rayCorner2 = rayCorner2([2,1,3]);
-        rayCorner3 = rayCorner3([2,1,3]);
-        beamSource  = beamSource([2,1,3]);
-        
-        % c) set vmc++ parameters
-        % EgsOptions.beamletSource.monoEnergy                = stf(i).ray(j).energy;                 % photon energy
-        % %EgsOptions.beamletSource.monoEnergy                 = []                  ;                  % use photon spectrum
-        % EgsOptions.beamletSource.beamletEdges               = [rayCorner1,rayCorner2,rayCorner3];    % counter-clockwise beamlet edges
-        % EgsOptions.beamletSource.virtualPointSourcePosition = beamSource;                            % virtual beam source position
-                                
-            %%%%%%%%%%%%%%%%%%%% this is important stuff from the VMC things:
-            % import calculated dose
-                readCounter = readCounter + 1;
-                
-                % Display progress
-                if verbose == 0
-                   % matRad_progress(readCounter,dij.totalNumOfBixels);
-                end
-                
-                % update waitbar
-                waitbar(writeCounter/dij.totalNumOfBixels);
-                
-                [bixelDose,bixelDoseError] = matRad_readDoseVmc(fullfile(dosPath, [dosbase,'Beam',num2str(i),'Beamlet',num2str(j),'.dos']),EgsOptions);
-                
-                
-                if ~calcDoseDirect
-                    % if not calculating dose directly, sample dose
-                    
-                    % determine cutoff
-                    doseCutoff          = relDoseCutoff*max(bixelDose);
-                    
-                    % determine which voxels to sample
-                    indSample = bixelDose < doseCutoff & bixelDose ~= 0;
-                    r = rand(nnz(indSample),1);
-                    
-                    % sample them
-                    thresRand = bixelDose(indSample)./doseCutoff;
-                    indKeepSampled = r < thresRand;
-                    indKeep = indSample;
-                    indKeep(indKeep) = indKeepSampled;
-                    
-                    
-                    clear indKeepSampled;
-                    bixelDose(indKeep) = doseCutoff;
-                    bixelDose(indSample & ~indKeep) = 0;
-                    clear indKeep;
-                    clear indSample;
-                    
-                    % coefficients and terms for the error
-                    erfArg = (doseCutoff-bixelDose)./(bixelDoseError.*sqrt(2));
-                    
 %                     erfp_coeff  = (bixelDose.*doseCutoff - bixelDose.^2);
 %                     erfp_term   = (1+erf(erfArg))./2;
-                    
+
 %                     erfm_coeff  = bixelDoseError.^2;
 %                     erfm_term   = (1-erf(erfArg))./2;
-                    
+
 %                     gauss_coeff = bixelDose.*bixelDoseError.^2;
 %                     gauss_term  = normpdf(doseCutoff,bixelDose,bixelDoseError);
 %                     
-                    % clear NaNs from bixelDoseError = 0
+                % clear NaNs from bixelDoseError = 0
 %                     gauss_term(isnan(gauss_term)) = 0;
-                    
-                    %bixelDoseError = sqrt( erfp_coeff.*erfp_term + erfm_coeff.*erfm_term + gauss_coeff.*gauss_term );
-                    bixelDoseError = sqrt( (bixelDose.*doseCutoff - bixelDose.^2).*((1+erf(erfArg))./2) + (bixelDoseError.^2).*((1-erf(erfArg))./2) + (bixelDose.*bixelDoseError.^2).*(normpdf(doseCutoff,bixelDose,bixelDoseError)) );
-                    
-                    
-                end
-                
-                % apply absolute calibration factor
-                bixelDoseError  = sqrt((absCalibrationFactorEgs.*bixelDoseError).^2+(bixelDose.*absCalibrationFactorEgs_err).^2);
-                bixelDose       = bixelDose*absCalibrationFactorEgs;
-                
-                % Save dose for every bixel in cell array
-                doseTmpContainer{1,1}       = sparse(V,1,bixelDose(V),dij.numOfVoxels,1);
-                doseTmpContainerError{1,1}  = sparse(V,1,bixelDoseError(V),dij.numOfVoxels,1);
-                
-                % save computation time and memory by sequentially filling the
-                % sparse matrix dose.dij from the cell array
-                if calcDoseDirect
-                    if isfield(stf(beamNum(readCounter)).ray(rayNum(readCounter)),'weight')
-                        % score physical dose
-                        dij.physicalDose{1}(:,i)        = dij.physicalDose{1}(:,i) + stf(beamNum(readCounter)).ray(rayNum(readCounter)).weight{1} * doseTmpContainer{1,1};
-                        dij.physicalDoseError{1}(:,i)   = sqrt(dij.physicalDoseError{1}(:,i).^2 + (stf(beamNum(readCounter)).ray(rayNum(readCounter)).weight{1} * doseTmpContainerError{1,1}).^2);
-                    else
-                        error(['No weight available for beam ' num2str(beamNum(readCounter)) ', ray ' num2str(rayNum(readCounter))]);
-                    end
-                else
-                    % fill entire dose influence matrix
-                    dij.physicalDose{1}(:,readCounter) = ...
-                        [doseTmpContainer{1:mod(readCounter-1,numOfBixelsContainer)+1,1}];
-                    
-                    dij.physicalDoseError{1}(:,readCounter) = ...
-                        [doseTmpContainerError{1:mod(readCounter-1,numOfBixelsContainer)+1,1}];
-                end
-                
-                %{
-                % apply absolute calibration factor
-                %bixelDose = bixelDose*absCalibrationFactorVmc;
-                bixelDose = bixelDose*absCalibrationFactorEgs;
 
-                % Save dose for every bixel in cell array
-                doseTmpContainer{1,1} = sparse(V,1,bixelDose(V),dij.numOfVoxels,1);
-                
-                % save computation time and memory by sequentially filling the 
-                % sparse matrix dose.dij from the cell array
-                    if calcDoseDirect
-                        if isfield(stf(beamNum(readCounter)).ray(rayNum(readCounter)),'weight')
-                            % score physical dose
-                            dij.physicalDose{1}(:,i) = dij.physicalDose{1}(:,i) + stf(beamNum(readCounter)).ray(rayNum(readCounter)).weight * doseTmpContainer{1,1};
-                        else
-                            error(['No weight available for beam ' num2str(beamNum(readCounter)) ', ray ' num2str(rayNum(readCounter))]);
-                        end
-                        fprintf("lookie therey...\n");
-                    else
-                        % fill entire dose influence matrix
-                        
-                        dij.physicalDose{1}(:,readCounter) = ...
-                            [doseTmpContainer{1,1}];
-                    end
-                %%%%%%%%%%%%%%%%%%%%%%
-                %fprintf("ok that was beam %d beamlet %d\n",i,j);
-                %}
-            
+                %bixelDoseError = sqrt( erfp_coeff.*erfp_term + erfm_coeff.*erfm_term + gauss_coeff.*gauss_term );
+                bixelDoseError = sqrt( (bixelDose.*doseCutoff - bixelDose.^2).*((1+erf(erfArg))./2) + (bixelDoseError.^2).*((1-erf(erfArg))./2) + (bixelDose.*bixelDoseError.^2).*(normpdf(doseCutoff,bixelDose,bixelDoseError)) );
+
+            end
+
+            % apply absolute calibration factor
+            bixelDoseError  = sqrt((absCalibrationFactorEgs.*bixelDoseError).^2+(bixelDose.*absCalibrationFactorEgs_err).^2);
+            bixelDose       = bixelDose*absCalibrationFactorEgs;
+
+            % Save dose for every bixel in cell array
+            doseTmpContainer{1,1}       = sparse(V,1,bixelDose(V),dij.numOfVoxels,1);
+            doseTmpContainerError{1,1}  = sparse(V,1,bixelDoseError(V),dij.numOfVoxels,1);
+
+            % save computation time and memory by sequentially filling the
+            % sparse matrix dose.dij from the cell array
+            if calcDoseDirect
+                if isfield(stf(beamNum(readCounter)).ray(rayNum(readCounter)),'weight')
+                    % score physical dose
+                    dij.physicalDose{1}(:,i)        = dij.physicalDose{1}(:,i) + stf(beamNum(readCounter)).ray(rayNum(readCounter)).weight{1} * doseTmpContainer{1,1};
+                    dij.physicalDoseError{1}(:,i)   = sqrt(dij.physicalDoseError{1}(:,i).^2 + (stf(beamNum(readCounter)).ray(rayNum(readCounter)).weight{1} * doseTmpContainerError{1,1}).^2);
+                else
+                    error(['No weight available for beam ' num2str(beamNum(readCounter)) ', ray ' num2str(rayNum(readCounter))]);
+                end
+            else
+                % fill entire dose influence matrix
+                dij.physicalDose{1}(:,readCounter) = ...
+                    [doseTmpContainer{1:mod(readCounter-1,numOfBixelsContainer)+1,1}];
+
+                dij.physicalDoseError{1}(:,readCounter) = ...
+                    [doseTmpContainerError{1:mod(readCounter-1,numOfBixelsContainer)+1,1}];
+            end
+
     end
-    mins = toc;
     fprintf('beam %d done',i);
     try
         text = strcat('got beam ' , num2str(i) , ' finished and it took ' , num2str(mins) , ' seconds');
@@ -397,27 +377,25 @@ for i = 1:dij.numOfBeams % loop over all beams
 end
 
 
-
-
-% % delete temporary files
-% delete(fullfile(phantomPath, 'matRad_CT.egsphant'));     % egs phantom file
+% % delete temporary files if you're DARING enough and know that you won't 
+% have to rerun anything :o
+% delete(fullfile(phantomPath, phantomName));     % egs phantom file
 % 
 % for i = 1:length(stf)
 %     for j = 1:stf(i).numOfRays
 %         % deletes egsinp files:
-%         delete(fullfile(egsinpPath, [egsinpbase,'Beam',num2str(i),'Beamlet',num2str(j),'.egsinp'])); % vmc inputfile
+%         delete(fullfile(egsinpPath, [egsinpbase,'Beam',num2str(i),'Beamlet',num2str(j),'.egsinp'])); % egs inputfile
 %         
 %         % deletes the .dos files we made from 3ddose files:
 %         delete(fullfile(dosPath, [dosbase,'Beam',num2str(i),'Beamlet',num2str(j),'.dos']));    % dosxyz output file in vmc output file format
 %     end
 % end
-%     
 
 
 try
   % wait 0.1s for closing all waitbars
-  allWaitBarFigures = findall(0,'type','figure','tag','TMWWaitbar'); 
+  allWaitBarFigures = findall(0,'type','figure','tag','TMWWaitbar');
   delete(allWaitBarFigures);
-  pause(0.1); 
+  pause(0.1);
 catch
 end

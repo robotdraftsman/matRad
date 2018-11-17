@@ -3,9 +3,10 @@
 %get number of particles in each beamlet
 
 stuffinBeamlet = zeros(361,4);
-filebase = 'dividedPhsp36M';
-filepath = 'EGSnrc/beamletPHSPfiles';
-for i = 1:361
+filebase = 'dividedPhsp';
+filepath = '/Users/sakinahussain/Documents/GitHub/beamletPHSPfiles-OLD';
+%for i = 1:361
+i = 156;
     phspFile = fullfile(filepath,strcat(filebase,num2str(i),'.egsphsp1'));
     m = memmapfile(phspFile,...
          'Format',{'int8',[1,5],'mode';...
@@ -21,7 +22,7 @@ for i = 1:361
         stuffinBeamlet(i,4) = m.Data.PHOT_PHSP_TOT;
   % clear m;
   
-end
+%end
 
 % phspFile = '1x1.egsphsp1';
 % [header2 phspData2 charges2 lastParticle2 numParticlesLeft2] = readBinaryPHSP_optimized(phspFile,readThisMuch,numParticlesToSkip);
